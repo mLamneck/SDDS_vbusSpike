@@ -106,6 +106,8 @@ class Tdhcp : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_DHCP>{
 	public:
 		typedef TcommThread::TexecRes TexecRes;
 
+		Taddr myAddr(){ return FmyAddr; }
+
 		void init(Tthread* _thread){			
 			initEvent(FclientTimer,_thread);
 			initEvent(FserverTimer,_thread);
@@ -310,7 +312,7 @@ class Tdhcp : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_DHCP>{
 		 */
 
 		constexpr void execute(Tevent* _ev){
-			int i = 0;
+			//int i = 0;
 
 		}
 

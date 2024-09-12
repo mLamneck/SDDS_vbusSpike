@@ -20,6 +20,42 @@ class TvbusProtocoll{
 		static constexpr auto port_open = 0x0A | request;
 		static constexpr auto port_close = 0x0C | request;
 		static constexpr auto port_ka = 0x0E;
+
+		static constexpr auto func_error = 0xFE;
+
+		static constexpr auto err_noMorePorts = 0xEB;
+		static constexpr auto err_invalidPort = 0xFE;
+
+
+/*
+.equ	NoError					=	0
+.equ    ErrServerBusy			=	255		;0xFF
+.equ    ErrInvalidPort    		=  	254		;0xFE
+.equ    ErrInvalidPath    		=   253		;0xFD
+.equ	ErrNoConnAvail	  		=	252		;0xFC
+.equ	ErrOutOfMemory	  		=	251		;0xFB
+.ifndef ErrNoMoreEvents
+.equ	ErrNoMoreEvents			=	250		;0xFA
+;.equ	ErrNoMorePorts			= 	236		;0xEB
+.endif
+.equ	ErrPointerNil			=	249		;0xF9
+.equ	ErrWrongArrayAccess		=	248		;0xF8
+.equ	ErrOutOfData		    =	247		;0xF7
+.equ	ErrEOF					=	246		;0xF6
+.equ	ErrNoneOfMyBusiness		=	245		;0xF5
+.equ	ErrNotAllowed			=	244		;0xF4
+.equ	ErrTimeout				=	243		;0xF3
+.ifndef ErrInvalidEvID
+.equ	ErrInvalidEvID			=	242		;0xF2
+.endif
+.equ	ErrServerNotInstalled	=	241		;0xF1
+.equ	ErrWrongLinkTime		=	240		;0xF0
+.equ	ErrPortAccessDenied		=	239		;0xEF		port/id don´t match in close port request
+.equ	ErrNoHandler			=	238		;0xEE
+.equ	ErrHashMismatch			= 	237		;0xED
+
+.equ	ErrNoMorePorts			= 	236		;0xEC
+*/
 };
 
 template <
@@ -42,6 +78,8 @@ class TvbusProtStream{
 		typedef _t_prot_port t_prot_port;
 		typedef uint8 t_prot_func;
 		typedef dtypes::uint16 t_prot_cs;
+		typedef dtypes::uint8 t_prot_error;
+		
 		typedef uint8 TbufferPos;
 		typedef TbufferPos TmessageSize;
 
@@ -152,6 +190,7 @@ class TvbusProtStream{
 
 		constexpr bool writeByte(const uint8 _byte){ return writeVal(_byte); }
 		constexpr bool writeCs(const t_prot_cs _val){ return writeVal(_val); }
+		constexpr bool writePort(const t_prot_port _val){ return writeVal(_val); }
 
 		constexpr TsubStringRef readString(){
 			TsubStringRef s;
@@ -174,15 +213,6 @@ class TvbusProtStream{
 		constexpr bool writeString(const char* _str){ return writeString(_str,strlen(_str)); }
 		constexpr bool writeString(TsubStringRef& _str){ return writeString(_str.c_str(),_str.length()); }
 
-		template<class TprotStream>
-		constexpr void setReturnHeader(TprotStream& _src, const t_prot_addr _myAddr, const t_prot_port _port=0){
-			ctrl(_src.ctrl());
-			destiny(_src.source());
-			source(_myAddr);
-			port(_port);
-			func(_src.func() & (~TvbusProtocoll::request));
-		}
-
 		constexpr void setReturnHeader(const t_prot_addr _src, const t_prot_port _port=0){
 			destiny(source());
 			source(_src);
@@ -196,6 +226,11 @@ class TvbusProtStream{
 			source(_source);
 			port(_port);
 			func(_func);
+		}
+
+		constexpr void buildErrMsg(const t_prot_error _err, const t_prot_port _port){
+			setHeader(source(),destiny(),_port,TvbusProtocoll::func_error);
+			writeVal(_err);
 		}
 
 		constexpr TbufferPos length() { return FwritePos; }

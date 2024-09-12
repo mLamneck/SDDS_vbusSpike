@@ -20,4 +20,4 @@ class TuserStruct : public TmenuHandle{
 
 
 TvbusSpike485 vsp(userStruct,&simUart1);
-TvbusSpike485 vsp1(userStruct,&simUart2);
+//TvbusSpike485 vsp1(userStruct,&simUart2);

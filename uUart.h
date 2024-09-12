@@ -360,7 +360,7 @@ class Tuart : public Tthread{
 							tx->data[3] = 0x00;
 							tx->data[4] = 0xCC;
 							memcpy(&tx->data[5],&Ferrors,sizeof(Ferrors));  		//uart_com7.write(&msg->data, msg->length);
-							write(tx,5 + sizeof(Ferrors));
+							//write(tx,5 + sizeof(Ferrors));
 						}
 					}
 					//event or callback!?
