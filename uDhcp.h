@@ -115,7 +115,7 @@ class Tdhcp : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_DHCP>{
 			FclientTimer.signal();
 			FserverTimer.setMsgRequest(true);
 			resetDhcpServer();
-#if MARKI_DEBUG_PLATFORM
+#if MARKI_DEBUG_PLATFORM == 1
 			static bool __first_dhcp = true;
 			if (__first_dhcp){
 				FserverTimer.setTimeEvent(100);
@@ -145,19 +145,20 @@ class Tdhcp : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_DHCP>{
 		 * build messages
 		 */
 
-		constexpr bool buildImTheOne(TprotStream& _ans){
+		constexpr void buildImTheOne(TprotStream& _ans){
 			_ans.setHeader(_ans.ADDR_BROADCAST(),FmyAddr,0,TvbusProtocoll::dhcp_imServer);
-			return true;
+			_ans.setSendPending();
 		}
 
-		constexpr bool buildQuery(TprotStream& _ps){
+		constexpr void buildQuery(TprotStream& _ps){
 			_ps.setHeader(_ps.ADDR_BROADCAST(),_ps.ADDR_BROADCAST(),0,TvbusProtocoll::dhcp_queryReq);
-			return true;
+			_ps.setSendPending();
 		}
 
 		constexpr void writeCrcAndSerial(TprotStream& _ps){
 			_ps.writeCs(0xCCCC);
 			_ps.writeString(Falias);
+			_ps.setSendPending();
 		}
 
 		constexpr void buildServerRequestOrKeepAlive(TprotStream& _ps){
@@ -181,32 +182,35 @@ class Tdhcp : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_DHCP>{
 			}
 		}
 		
-		bool handleDhcpReq(TprotStream& _msg){
+		void handleDhcpReq(TprotStream& _msg){
+			//Fstatus.serverActive = true;
 			if (!Fstatus.serverActive){
 				if (Fstatus.serverIsActiveButNotReady){
 					buildImTheOne(_msg);
-					return true;
+					return;
 				}
 				setDecisionTimeout();
-				return false;
+				return;
 			}
 			
 			Tcs cs;
-			if (!_msg.readVal(cs)) return false;
+			if (!_msg.readVal(cs)) return;
 			auto serial = _msg.readString();
-			if (serial.length() < 1) return false;
+			if (serial.length() < 1) return;
 
 			Taddr freeId = Faddresses.findFree();
 			if (!freeId){
 				//this should never happen
 				buildImTheOne(_msg);
-				return true;				
+				return;				
 			}
 
 			//let the node know his new address			
-			_msg.setReturnHeader(FmyAddr);
+			_msg.setReturnHeader();
 			_msg.writeVal(freeId);
-			return _msg.writeString(serial);
+			if (_msg.writeString(serial)) {
+				_msg.setSendPending();
+			}
 		}
 
 		ThandleMessageRes handleMessage(TprotStream& _msg){
@@ -216,34 +220,34 @@ class Tdhcp : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_DHCP>{
 			switch(func){
 				case TvbusProtocoll::dhcp_queryReq: 
 					FclientTimer.setTimeEvent(Trandom::gen(100));
-					return ThandleMessageRes::noAnswer;
+					break;
 
 				case TvbusProtocoll::dhcp_set:
 					handleDhcpSet(_msg);
 					setServerInactive();
-					return ThandleMessageRes::noAnswer;
-				
+					break;
+
 				case TvbusProtocoll::dhcp_req: 
-					if (handleDhcpReq(_msg))  
-						return ThandleMessageRes::answer;
-					else 
-						return ThandleMessageRes::noAnswer;
-				
+					handleDhcpReq(_msg);
+					break;
+
 				case TvbusProtocoll::dhcp_whoIsReq: 
-					if (!isMyAddressValid() || !isMySerial(_msg)) 
-						return ThandleMessageRes::noAnswer;
-					_msg.setReturnHeader(FmyAddr);
-					writeCrcAndSerial(_msg);		//needed?
-					return ThandleMessageRes::answer;
+					if (isMyAddressValid() && isMySerial(_msg)){
+						_msg.setReturnHeader();
+						writeCrcAndSerial(_msg);		//needed?
+					} 
+					break;
 				
 				case TvbusProtocoll::dhcp_ka: case TvbusProtocoll::dhcp_whoIs:
-					return ThandleMessageRes::noAnswer;
-				
+					break;
+
 				case TvbusProtocoll::dhcp_imServer: 
 					setServerInactive();
-					return ThandleMessageRes::noAnswer;
+					break;
+
+				default : return ThandleMessageRes::notMyBusiness;
 			}
-			return ThandleMessageRes::notMyBusiness;
+			return ThandleMessageRes::handled;
 		}
 
 

@@ -6,11 +6,10 @@
 #include "uSpookyMacros.h"
 #include "uEnumMacros.h"
 
-using namespace dtypes;
-
 namespace com7{
     typedef int Tres;
     typedef dtypes::uint8 byte;
+   	typedef dtypes::uint8 uint8;
 
     namespace decryptErrs{
         static const Tres INP_TOO_SHORT = -1;
@@ -116,5 +115,9 @@ namespace com7{
     }
 
 }
+
+#if MARKI_DEBUG_PLATFORM == 1
+#include "test/uCom7_test.h"
+#endif
 
 #endif

@@ -19,8 +19,9 @@ class TcommThreadDefs{
 	public:
 		constexpr static int ID_DHCP = 5;
 		constexpr static int ID_CONNECTIONS = 6;
+		constexpr static int ID_DATASERVER = 7;
 		enum class TexecRes {idle,noMessage,sendMessage};
-		enum class ThandleMessageRes {answer,noAnswer,notMyBusiness};
+		enum class ThandleMessageRes : int {handled, notMyBusiness};
 };
 
 template <int _ID>
