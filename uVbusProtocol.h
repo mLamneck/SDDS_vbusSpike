@@ -113,10 +113,14 @@ class TbufferStream{
 		int spaceAvailableForWrite() { return FbufferSize - FwritePos; }
 		
 		bool writeByte(const uint8 _byte){ return writeVal(_byte); }
+		bool writeWord(const dtypes::uint16 _val){ return writeVal(_val); }
 		
-		int writeBytes(const void* _ptr, int _n){
+		int writeBytes(const void* _ptr, int _n, bool _skipIfdoesntFit = false){
 			auto spaceAvailable = spaceAvailableForWrite();
-			if (_n > spaceAvailable) _n = spaceAvailable;
+			if (_n > spaceAvailable){
+				if (_skipIfdoesntFit) return 0;
+				_n = spaceAvailable;
+			} 
 			memcpy(&Fbuffer[FwritePos], _ptr, _n);
 			FwritePos += _n;
 			return _n;
@@ -270,6 +274,7 @@ class TvbusProtStream : public TbufferStream{
 
 		constexpr bool writeCs(const t_prot_cs _val){ return writeVal(_val); }
 		constexpr bool writePort(const t_prot_port _val){ return writeVal(_val); }
+		constexpr bool writeMsgCnt(const t_prot_msgCnt _val){ return writeVal(_val); }
 
 		constexpr bool writePathEntry(const t_path_entry _val){ return writeVal(_val); }
 

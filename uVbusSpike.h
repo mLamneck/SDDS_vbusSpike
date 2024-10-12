@@ -136,7 +136,7 @@ class TvbusSpikeBase : public Tthread{
 		}
 
 		template <class Thandler>
-		constexpr void handleEvMsgRequest(Thandler& _handler, TcommEvent* _ev){
+		constexpr void handleEvMsgRequest(Thandler& _handler, Tevent* _ev){
 			if (_handler.execute(_ev,Fps) == Thandler::TexecRes::sendMessage)
 				sendMessage();
 		}
@@ -152,8 +152,10 @@ class TvbusSpikeBase : public Tthread{
 				return;
 			}
 			
-			auto ev = static_cast<TcommEvent*>(_ev);
-			if (ev->msgRequest()){
+			auto tag = _ev->args.byte0;
+			auto msgRequest = tag & TcommThreadDefs::MSG_REQ_FLAG;
+			auto id = tag & ~TcommThreadDefs::MSG_REQ_FLAG;
+			if (msgRequest){
 				/*
 				 * this should never happen
 				 */
@@ -163,17 +165,30 @@ class TvbusSpikeBase : public Tthread{
 				}
 				auto buf = Fstream->getTxBuffer();
 				Fps.init(buf->data);
-				switch (ev->id())
-				{
-					case DataServer::ID: return handleEvMsgRequest(FdataServer,ev);
-					case Connections::ID: return handleEvMsgRequest(Fconnections,ev);
-					case Dhcp::ID: return handleEvMsgRequest(Fdhcp,ev);
+				if (_ev->args.word1 > 0){
+					auto conn = Fconnections.getConnection(_ev->args.word1);
+					if (!conn) return;
+					/**
+					 * for now Dataserver is the only one that deals with connections so we don't
+					 * have to check for the ID to match
+					 */
+					if (FdataServer.execute(_ev,Fps,conn) == TcommThreadDefs::TexecRes::sendMessage)
+						sendMessage();
+					return;
+				}
+				else{
+					switch (id)
+					{
+						case DataServer::ID: return handleEvMsgRequest(FdataServer,_ev);
+						case Connections::ID: return handleEvMsgRequest(Fconnections,_ev);
+						case Dhcp::ID: return handleEvMsgRequest(Fdhcp,_ev);
+					}
 				}
 			}
 			else{
-				switch (ev->id())
+				switch (id)
 				{
-					case Dhcp::ID: return Fdhcp.execute(ev);
+					case Dhcp::ID: return Fdhcp.execute(_ev);
 				}
 			}
 		}
@@ -253,7 +268,7 @@ class TvbusSpikeBase : public Tthread{
 
 					for (int i=0; i<4; i++){
 						Fps.init(&FtxBuffer.data[0]);
-						Fps.setHeader(5,6,0,TvbusProtocoll::port_open);
+						Fps.setHeader(6,5,0,TvbusProtocoll::port_open);
 						Fps.writeByte(1+i);//client port
 						Fps.init(&FtxBuffer.data[0],Fps.length());
 						handleMessage();
@@ -261,14 +276,14 @@ class TvbusSpikeBase : public Tthread{
 
 					for (int i=0; i<4; i++){
 						Fps.init(&FtxBuffer.data[0]);
-						Fps.setHeader(5,6,0,TvbusProtocoll::port_open);
+						Fps.setHeader(6,5,0,TvbusProtocoll::port_open);
 						Fps.writeByte(1+i);//client port
 						Fps.init(&FtxBuffer.data[0],Fps.length());
 						handleMessage();
 					}
 
 					Fps.init(&FtxBuffer.data[0]);
-					Fps.setHeader(5,6,10,TvbusProtocoll::ds_link_req);
+					Fps.setHeader(6,5,10,TvbusProtocoll::ds_link_req);
 					Fps.writeByte(2);
 					Fps.writeByte(0);
 					Fps.writeByte(0xFF);

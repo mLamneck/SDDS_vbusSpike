@@ -23,7 +23,8 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 	public:
 		void init(Tthread* _thread){
 			initEvent(FtypeST.Fevent,_thread);
-			FtypeST.Fevent.setMsgRequest(true);
+			setMsgRequest(FtypeST.Fevent);
+			//FtypeST.Fevent.setMsgRequest(true);
 		}
 
 		void startTypeThread(TypeST& _typeST, const Taddr _clientAddr, const Tport _clientPort, TbinLocator& _l){
@@ -32,7 +33,7 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 			_typeST.FtypeCurrItem = _l.firstItem();
 			_typeST.FtypeLastItem = _l.lastItem();
 			_typeST.FtypeCurrIdx = _l.firstItemIdx();
-			_typeST.Fevent.trigger();
+			trigger(_typeST.Fevent);
 		}
 
 		bool writeEnums(TprotStream& _msg, TypeST& _typeST, TenumBase* en){
@@ -124,7 +125,6 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 			//reply with error for wrong path
 			TbinLocator l;
 			if (!l.locate(_ps,_root)) return _ps.buildErrMsg(TvbusProtocoll::err_invalidPath,clientPort);
-
 			startTypeThread(FtypeST,_ps.source(),clientPort,l);
 		}
 
@@ -133,13 +133,41 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 			TbinLocator l;
 			if (!l.locate(_ps,_root)) return _ps.buildErrMsg(TvbusProtocoll::err_invalidPath,_conn->clientPort());
 
-			//toDo
-			_conn->setupLink(FtypeST.Fevent.owner());
+			_conn->setupLink(FtypeST.Fevent.owner(),l.menu(),_ps.port());
+			l.menu()->events()->push_first(&_conn->FobjEvent);
+			setMsgRequest(_conn->FobjEvent.event());
+			_conn->FobjEvent.signal();
 		}
 
 		constexpr TexecRes execute(Tevent* _ev, TprotStream& _msg){
 			if (_ev == &FtypeST.Fevent)
 				return handleTypeThread(_msg,FtypeST);
+			return TexecRes::noMessage;
+		}
+
+		constexpr TexecRes execute(Tevent* _ev, TprotStream& _msg, Tconnection* _conn){
+			if (_conn->isDataEvent(_ev)){
+				auto ev = TobjectEvent::retrieve(_ev);
+				t_path_entry firstIdx = ev->first();
+				int n = ev->last() - firstIdx + 1;
+				_msg.setHeader(_conn->clientAddr(),_conn->clientPort(),TvbusProtocoll::ds_link);
+				_msg.writeMsgCnt(0x80);
+				_msg.writeVal(firstIdx);
+				auto curr = ev->Fstruct->get(firstIdx);
+				while (curr && n-- > 0){
+					if (curr->typeId() < sdds::typeIds::first_compose_type)
+					{
+						if (!_msg.writeBytes(curr->pValue(),curr->valSize(),true)){
+							//toDo: start datathread to proceed with next value after 10ms;
+							break;
+						};
+					}
+					else if (!_msg.writeWord(1)) break;	//no nullptr for composite types at the moment
+					curr = curr->next();
+				}
+				_msg.setSendPending();
+				return TexecRes::sendMessage; 
+			}
 			return TexecRes::noMessage;
 		}
 

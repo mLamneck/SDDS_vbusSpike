@@ -58,7 +58,7 @@ class Tdhcp : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_DHCP>{
 	public:
 		constexpr static int FIRST_FUNC = TvbusProtocoll::dhcp_firstFunc;		
 		constexpr static int LAST_FUNC = TvbusProtocoll::dhcp_lastFunc;		
-#if MARKI_DEBUG_PLATFORM == 0
+#if MARKI_DEBUG_PLATFORM_XXXXX == 0
 		//timing for client in ms 
 		constexpr static int KEEP_ALIVE_TIME = 8000;
 		constexpr static int SERVER_REQUEST_TIME = 2000;
@@ -82,8 +82,8 @@ class Tdhcp : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_DHCP>{
 		typedef typename TprotStream::t_prot_func Tfunc;
 		typedef typename TprotStream::t_prot_cs Tcs;
 		
-		TcommEvent FclientTimer;
-		TcommEvent FserverTimer;
+		Tevent FclientTimer;
+		Tevent FserverTimer;
 
 		TaddrList<64> Faddresses;
 
@@ -111,9 +111,9 @@ class Tdhcp : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_DHCP>{
 		void init(Tthread* _thread){			
 			initEvent(FclientTimer,_thread);
 			initEvent(FserverTimer,_thread);
-			FclientTimer.setMsgRequest(true);
+			setMsgRequest(FclientTimer);
 			FclientTimer.signal();
-			FserverTimer.setMsgRequest(true);
+			setMsgRequest(FserverTimer);
 			resetDhcpServer();
 #if MARKI_DEBUG_PLATFORM == 1
 			static bool __first_dhcp = true;
@@ -301,7 +301,7 @@ class Tdhcp : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_DHCP>{
 					return;
 				};
 				FmyAddr = id;
-				FclientTimer.trigger();
+				trigger(FclientTimer);
 			}
 
 			Fstatus.timeoutType = TtimeoutType::recycle;

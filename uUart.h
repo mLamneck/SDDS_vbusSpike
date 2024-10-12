@@ -2,7 +2,7 @@
 #define UUART_H
 
 #if MARKI_DEBUG_PLATFORM==0
-	#define DEBUG_UART_ECHO 1//!MARKI_DEBUG_PLATFORM
+	#define DEBUG_UART_ECHO 0//!MARKI_DEBUG_PLATFORM
 #else
 	#define DEBUG_UART_ECHO 0
 #endif
@@ -91,11 +91,9 @@ class Tuart : public Tthread{
 		volatile bool FendOfFrameEvPending = false;
 
 		void setWaitForAck(){
-			TP3::high();
 			FwaitForAck = true;
 		}
 		void clearWaitForAck(){
-			TP3::low();
 			FwaitForAck = false;
 		}
 
@@ -195,29 +193,14 @@ class Tuart : public Tthread{
 			else FpRxCurrBuf = &FrxBuffers[0];
 		}
 
-		void writeOld(TmessageBufferTX* _buf, int _size){
-			TP1::pulse();
-			if (FpTxMsg) return;
-
-			if (_buf->data[1] == 0xFF) FnTries = 1;
-			else FnTries = 2;
-			auto len = com7::encrypt(_buf->data,_size,_buf->c7start,TmessageBufferTX::c7SIZE);
-			if (len < 0) return;
-
-			FpTxMsg = _buf;
-			FpTxMsg->length = len;
-			//start random timer if not receiving, not transmitting and randomTimer not running
-			if (!FprivStatus.inRandonTimeout && !FprivStatus.inTransmission && (FrxCurr == 0)){
-				setRandomTimeout();
-			}
-		}
-
 		void write(dtypes::uint8* _buf, int _size){
 			TP1::pulse();
 			if (FpTxMsg) return;
 
 			if (_buf[1] == 0xFF) FnTries = 1;
 			else FnTries = 2;
+			if (_buf[2] != 0xFF)
+				FmyAddr = _buf[2];
 			auto len = com7::encrypt(_buf,_size,FtxMsg.c7start,TmessageBufferTX::c7SIZE);
 			if (len < 0) return;
 
@@ -417,6 +400,7 @@ class Tuart : public Tthread{
 
 			//end of message
 			else{
+				TP3::high();
 				if ((_byte == ACK) && (FrxCurr == 0)){
 					FackReceived = 1;
 				}
@@ -449,6 +433,7 @@ class Tuart : public Tthread{
 				FendOfFrameReceived = true;
 				FendOfFrameEvPending = true;
 				FevEndOfFrame.signal();
+				TP3::low();
 			}
 		}
 

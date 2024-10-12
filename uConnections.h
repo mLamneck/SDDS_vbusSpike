@@ -15,7 +15,7 @@ namespace vbusSpike{
 		typedef typename TprotStream::t_path_length t_path_length; 
 		typedef typename TprotStream::t_prot_msgCnt TmsgCnt; 
 
-		TcommEvent Fevent;
+		Tevent Fevent;
 		Taddr FtypeClientAddr; 
 		Tport FtypeClientPort;
 		TmsgCnt FtypeMsgCnt;
@@ -40,16 +40,19 @@ namespace vbusSpike{
 			Tport FclientPort;
 			TdataEvent FobjEvent;
 
+			bool isDataEvent(Tevent* _ev){ return FobjEvent.event() == _ev; }
 			bool isFree() { return (FclientPort == 0); }
 			Taddr clientAddr() { return FclientAddr; }
 			Tport clientPort() { return FclientPort; }
 			void shutdown(){
 				FclientPort = 0;
+				FobjEvent.cleanup();
 			}
 
-			void setupLink(Tthread* _thread){
+			void setupLink(Tthread* _thread, TmenuHandle* _struct, dtypes::uint16 _port){
 				FobjEvent.setOwner(_thread);
-				FobjEvent.signal();
+				FobjEvent.event()->args.word1 = _port;
+				FobjEvent.Fstruct = _struct;
 			 }
 			void setTxActivity(bool _val){ FtxActivity = _val; }
 			void setRxActivity(bool _val){ FrxActivity = _val; }
@@ -70,8 +73,8 @@ class Tconnections : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_
 
 		void init(Tthread* _thread){
 			initEvent(FevKa,_thread);
-			FevKa.setMsgRequest(true);
-			FevKa.signal();
+			setMsgRequest(FevKa);
+			FevKa.setTimeEvent(KEEP_ALIVE_TIME);
 		}
 
 	private:
@@ -84,7 +87,7 @@ class Tconnections : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_
 
 		//event and iterator to send keepalives
 		//FkaEventCnt to shutdown connections without activity
-		TcommEvent FevKa;
+		Tevent FevKa;
 		int FkaCurrIdx = 0;
 		int FkaEventCnt = 0;
 
@@ -109,6 +112,8 @@ class Tconnections : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_
 			auto conn = Fconnections.get(idx);
 			conn->FclientAddr = _addr;
 			conn->FclientPort = _clientPort;
+			conn->setRxActivity(true);
+			conn->setTxActivity(true);
 			return idx;
 		}
 
@@ -134,6 +139,7 @@ class Tconnections : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_
 				_ps.setReturnHeader(clientPort);
 				clientPort = 0;
 				_ps.writeVal(clientPort);
+				_ps.setSendPending();
 			} else
 				_ps.buildErrMsg(TvbusProtocoll::err_invalidPort,clientPort);			
 		}
@@ -153,6 +159,13 @@ class Tconnections : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_
 			if (!conn) return nullptr;
 			if (conn->isFree() || conn->clientAddr() != _addr) return nullptr;
 			conn->setRxActivity(true);
+			return conn;
+		}
+
+		Tconnection* getConnection(const Tport _port){
+			auto conn = Fconnections.get((int)_port-FIRST_PORT); 
+			if (!conn) return nullptr;
+			if (conn->isFree()) return nullptr;
 			return conn;
 		}
 

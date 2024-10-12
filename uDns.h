@@ -16,7 +16,7 @@ class Tdns{
 		typedef typename TprotStream::t_path_length t_path_length; 
 	public:
 		void handleDnsReq(TprotStream& _msg,  TmenuHandle* _root){
-			Tport clientPort;
+			Tport clientPort = 0;
 			if (!_msg.readVal(clientPort)) return;
 			_msg.setReturnHeader(clientPort);
 
