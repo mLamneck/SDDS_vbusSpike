@@ -24,9 +24,9 @@ class Tdns{
 			auto pos = _msg.readPos();
 			TbinLocator<t_path_length, t_path_entry> l;
 			if (!l.locate(_msg,_root)) return _msg.buildErrMsg(TvbusProtocoll::err_invalidPath,clientPort);
-			_msg.setReadPos(pos);
 			
 			//move bin path to correct postion in output
+			_msg.setReadPos(pos);
 			pos = _msg.writePos();
 			t_path_length length = 0;
 			_msg.readVal(length);

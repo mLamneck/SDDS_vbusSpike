@@ -111,7 +111,7 @@ class TbufferStream{
 			FwritePos+=_nBytes;
 		}
 
-	 	int bytesAvailableForRead() { return FbytesAvailableForRead; }
+	 	int bytesAvailableForRead() { return FbytesAvailableForRead - FreadPos; }
 		
 		bool hasSpaceFor(const uint8 _size){
 			return ((FwritePos + _size) < FbufferSize);
@@ -138,6 +138,13 @@ class TbufferStream{
 			return _n;
 		}
 
+		int readBytes(void* _dst, int _n){
+			if (bytesAvailableForRead() < _n) return 0;
+			memcpy(_dst, &Fbuffer[FreadPos], _n);
+			FreadPos += _n;
+			return _n;
+		}
+
 		template <typename T>
 		bool writeVal(const T _value){
 			if (!hasSpaceFor(sizeof(T))) return false;
@@ -153,7 +160,7 @@ class TbufferStream{
 
 		template <typename T>
 		bool readVal(T& _value){
-			if (FreadPos>=FbytesAvailableForRead) return false;
+			if (bytesAvailableForRead() < sizeof(T)) return false;
 			memcpy(&_value,&Fbuffer[FreadPos], sizeof(T));
 			FreadPos += sizeof(T);
 			return true;
@@ -288,13 +295,13 @@ class TvbusProtStream : public TbufferStream{
 		constexpr bool writePort(const t_prot_port _val){ return writeVal(_val); }
 		constexpr bool writeMsgCnt(const t_prot_msgCnt _val){ return writeVal(_val); }
 
-		constexpr bool writePathEntry(const t_path_entry _val){ return writeVal(_val); }
+		bool writePathEntry(const t_path_entry _val){ return writeVal(_val); }
 
 		constexpr TsubStringRef readString(){
 			TsubStringRef s;
 			dtypes::uint8 len;
 			if (!readVal(len)) return s;
-			if (len > (FbytesAvailableForRead-FreadPos)) return s;
+			if (len > bytesAvailableForRead()) return s;
 			s.init((char*)&Fbuffer[FreadPos],len);
 			FreadPos+=len;
 			return s;
@@ -302,7 +309,7 @@ class TvbusProtStream : public TbufferStream{
 
 		constexpr TsubStringRef getText(){
 			TsubStringRef s;
-			s.init((char*)&Fbuffer[FreadPos],FbytesAvailableForRead-FreadPos);
+			s.init((char*)&Fbuffer[FreadPos],bytesAvailableForRead());
 			return s;
 		}
 

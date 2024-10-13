@@ -21,7 +21,7 @@ class TtestDns : public TtestCase{
 	bool pathError(int* _expData){
 		int expDataLen = *_expData;
 		Fps.init(&FtxBuffer.data[0],FmessageLength);
-		int len = Fps.bytesAvailableForRead()-Fps.readPos();
+		int len = Fps.bytesAvailableForRead();
 		TprotStream::t_path_length resLen = 0;
 		Fps.readVal(resLen);
 		debug::write("path not correct \"%d",resLen);

@@ -6,6 +6,11 @@
 #include "uStrings.h"
 #include "uRandom.h"
 
+#if MARKI_DEBUG_PLATFORM == 1
+#define DHCP_DEBUG 0
+#else
+#define DHCP_DEBUG 0
+#endif
 
 template<int MAX_ADDRESSES>
 class TaddrList {
@@ -58,7 +63,7 @@ class Tdhcp : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_DHCP>{
 	public:
 		constexpr static int FIRST_FUNC = TvbusProtocoll::dhcp_firstFunc;		
 		constexpr static int LAST_FUNC = TvbusProtocoll::dhcp_lastFunc;		
-#if MARKI_DEBUG_PLATFORM_XXXXX == 0
+#if DHCP_DEBUG == 0
 		//timing for client in ms 
 		constexpr static int KEEP_ALIVE_TIME = 8000;
 		constexpr static int SERVER_REQUEST_TIME = 2000;
@@ -104,8 +109,6 @@ class Tdhcp : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_DHCP>{
 		)
 
 	public:
-		typedef TcommThread::TexecRes TexecRes;
-
 		Taddr myAddr(){ return FmyAddr; }
 
 		void init(Tthread* _thread){			
@@ -132,11 +135,11 @@ class Tdhcp : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_DHCP>{
 		 * helper functions
 		 */
 
-		constexpr bool isMySerial(TprotStream& _msg){
+		bool isMySerial(TprotStream& _msg){
 			return (_msg.readString() == Fserial);
 		}
 
-		constexpr bool isMyAddressValid(){
+		bool isMyAddressValid(){
 			return (FmyAddr != TprotStream::ADDR_BROADCAST()); 
 		}
 
@@ -145,23 +148,23 @@ class Tdhcp : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_DHCP>{
 		 * build messages
 		 */
 
-		constexpr void buildImTheOne(TprotStream& _ans){
+		void buildImTheOne(TprotStream& _ans){
 			_ans.setHeader(_ans.ADDR_BROADCAST(),FmyAddr,0,TvbusProtocoll::dhcp_imServer);
 			_ans.setSendPending();
 		}
 
-		constexpr void buildQuery(TprotStream& _ps){
+		void buildQuery(TprotStream& _ps){
 			_ps.setHeader(_ps.ADDR_BROADCAST(),_ps.ADDR_BROADCAST(),0,TvbusProtocoll::dhcp_queryReq);
 			_ps.setSendPending();
 		}
 
-		constexpr void writeCrcAndSerial(TprotStream& _ps){
+		void writeCrcAndSerial(TprotStream& _ps){
 			_ps.writeCs(0xCCCC);
 			_ps.writeString(Falias);
 			_ps.setSendPending();
 		}
 
-		constexpr void buildServerRequestOrKeepAlive(TprotStream& _ps){
+		void buildServerRequestOrKeepAlive(TprotStream& _ps){
 			Tfunc func = _ps.isBroadcast(FmyAddr) ? TvbusProtocoll::dhcp_req : TvbusProtocoll::dhcp_ka;
 			_ps.setHeader(_ps.ADDR_BROADCAST(),FmyAddr,0,func);
 			writeCrcAndSerial(_ps);
@@ -172,7 +175,7 @@ class Tdhcp : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_DHCP>{
 		 * handle incoming messages
 		 */
 
-		constexpr void handleDhcpSet(TprotStream& _msg){
+		void handleDhcpSet(TprotStream& _msg){
 			Taddr setAddr;
 			if (!_msg.readVal(setAddr)) return;
 			if (isMySerial(_msg)){
@@ -320,12 +323,12 @@ class Tdhcp : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_DHCP>{
 
 		}
 
-		constexpr TexecRes execute(Tevent* _ev, TprotStream& _ps){
+		void execute(Tevent* _ev, TprotStream& _ps){
  			if (_ev == &FclientTimer){
 				buildServerRequestOrKeepAlive(_ps);
 				int timeout = isMyAddressValid() ? KEEP_ALIVE_TIME : SERVER_REQUEST_TIME;  
 				FclientTimer.setTimeEvent(timeout);
-				return TexecRes::sendMessage;
+				return;
 			}
 
 			else if (_ev == &FserverTimer){
@@ -341,7 +344,7 @@ class Tdhcp : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_DHCP>{
 						Faddresses.recycle();
 						Faddresses.store(FmyAddr);
 						FserverTimer.setTimeEvent(RECYCLE_TIME);
-						return TexecRes::noMessage;
+						return;
 
 					/*
 					 * decide if we have to do the work of dhcp server
@@ -356,7 +359,7 @@ class Tdhcp : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_DHCP>{
 							FserverTimer.setTimeEvent(0);	//send query as soon as possible
 						}
 						buildImTheOne(_ps);
-						return TexecRes::sendMessage;
+						return;
 
 					/*
 					 * here we send a query if we have not collected all addresses.
@@ -369,12 +372,12 @@ class Tdhcp : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_DHCP>{
 							Fstatus.queryCnt++;
 							FserverTimer.setTimeEvent(QUERY_REPEAT_TIME);
 							buildQuery(_ps);
-							return TexecRes::sendMessage;
+							return;
 						}
 						else{
 							Fstatus.timeoutType = TtimeoutType::collect;
 							FserverTimer.setTimeEvent(COLLECT_TIME);
-							return TexecRes::noMessage;
+							return;
 						}
 
 					/*
@@ -386,10 +389,9 @@ class Tdhcp : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_DHCP>{
 						setServerActive();
 						Fstatus.timeoutType = TtimeoutType::recycle;
 						FserverTimer.setTimeEvent(RECYCLE_TIME);
-						return TexecRes::noMessage;					
+						return;					
 				}
 			}
-			return TexecRes::noMessage;
 		}
 };
 

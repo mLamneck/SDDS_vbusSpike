@@ -39,7 +39,9 @@ class TvbusSpikeBase : public Tthread{
 		Connections Fconnections;
 		Dns Fdns;
 		DataServer FdataServer;
-
+#if MARKI_DEBUG_PLATFORM == 1
+		Tevent FevStimul = nullptr;
+#endif
 	public:
 		/*
 		 * Event priorities:
@@ -61,6 +63,11 @@ class TvbusSpikeBase : public Tthread{
 				Fdhcp.init(this);
 				Fconnections.init(this);
 				FdataServer.init(this);
+#if MARKI_DEBUG_PLATFORM == 1
+				FevStimul.setOwner(this);
+				FevStimul.setPriority(2);
+				FevStimul.signal();
+#endif
 			}
 
 	protected:
@@ -167,7 +174,7 @@ class TvbusSpikeBase : public Tthread{
 				Fps.init(buf->data);
 
 				/**
-				 * Deal with events associated with a connection:
+				 * execute threads with connection
 				 * 
 				 * for now Dataserver is the only one that deals with connections so we don't
 				 * have to check for the ID to match
@@ -177,24 +184,22 @@ class TvbusSpikeBase : public Tthread{
 					auto conn = Fconnections.getConnection(portNum);
 					if (!conn) return;
 					FdataServer.execute(_ev,Fps,conn);
-					return checkSendMessage();
 				}
 
-
+				/**
+				 * execute threads for port 0
+				 */
 				else{
 					switch (id)
 					{
-						case DataServer::ID: return handleEvMsgRequest(FdataServer,_ev);
-						case Connections::ID: return handleEvMsgRequest(Fconnections,_ev);
-						case Dhcp::ID: return handleEvMsgRequest(Fdhcp,_ev);
+						case DataServer::ID: FdataServer.execute(_ev,Fps); break;
+						case Connections::ID: Fconnections.execute(_ev,Fps); break;
+						case Dhcp::ID: Fdhcp.execute(_ev,Fps); break;
 					}
 				}
-			}
-			else{
-				switch (id)
-				{
-					case Dhcp::ID: return Fdhcp.execute(_ev);
-				}
+
+				checkSendMessage();
+
 			}
 		}
 
@@ -238,80 +243,133 @@ class TvbusSpikeBase : public Tthread{
 				return handleTxIdle();
 			}
 			else if (isTaskEvent(_ev)){
+
+			}
 #if MARKI_DEBUG_PLATFORM == 1
+			else if (_ev == &FevStimul){
 				static typename _Tstream::TmessageBufferRX FtxBuffer;
-				if (1==1){
-					if (1==1){
-						Fps.init(&FtxBuffer.data[0]);
-						Fps.setHeader(0xFF,0xFF,0,TvbusProtocoll::dhcp_req);
-						parseStr("0x7E 0xC1 0x0F 0x4D 0x6F 0x74 0x6F 0x34 0x38 0x35 0x47 0x2D 0x30 0x30 0x31 0x32 0x35 0x39");               
-						FtxBuffer.length = Fps.length();
-						readMessage(&FtxBuffer);
-					}
+				static int stimul_status = 0;
+				dtypes::uint32 uint32Val = 0;
+				switch(stimul_status){
+					case 0:
+						if (1==1){
+							if (1==1){
+								Fps.init(&FtxBuffer.data[0]);
+								Fps.setHeader(0xFF,0xFF,0,TvbusProtocoll::dhcp_req);
+								parseStr("0x7E 0xC1 0x0F 0x4D 0x6F 0x74 0x6F 0x34 0x38 0x35 0x47 0x2D 0x30 0x30 0x31 0x32 0x35 0x39");               
+								FtxBuffer.length = Fps.length();
+								readMessage(&FtxBuffer);
+							}
 
-					Fps.init(&FtxBuffer.data[0]);
-					Fps.setHeader(0xFF,0xCC,0,TvbusProtocoll::dhcp_set);
-					Fps.writeByte(6);
-					Fps.writeString("NUCLEO1");
-					Fps.init(&FtxBuffer.data[0],Fps.length());
-					Fdhcp.handleMessage(Fps);
-
-					if (1 == 2){
-						Fps.init(&FtxBuffer.data[0]);
-						Fps.setHeader(0xFF,0xCC,0,TvbusProtocoll::ds_type_req);
-						Fps.writeByte(13);	//client port
-						Fps.writeByte(3);
-						Fps.writeByte(1);
-						Fps.writeByte(0);
-						Fps.writeByte(0xFF);
-						auto len = Fps.length();
-						Fps.init(&FtxBuffer.data[0],Fps.length());
-						handleMessage();
-						Fps.init(&FtxBuffer.data[0],len);
-						handleMessage();						
-					}
-
-					for (int i=0; i<4; i++){
-						Fps.init(&FtxBuffer.data[0]);
-						Fps.setHeader(6,5,0,TvbusProtocoll::port_open);
-						Fps.writeByte(1+i);//client port
-						Fps.init(&FtxBuffer.data[0],Fps.length());
-						handleMessage();
-					}
-
-					for (int i=0; i<4; i++){
-						Fps.init(&FtxBuffer.data[0]);
-						Fps.setHeader(6,5,0,TvbusProtocoll::port_open);
-						Fps.writeByte(1+i);//client port
-						Fps.init(&FtxBuffer.data[0],Fps.length());
-						handleMessage();
-					}
-
-					Fps.init(&FtxBuffer.data[0]);
-					Fps.setHeader(6,5,10,TvbusProtocoll::ds_link_req);
-					Fps.writeByte(2);
-					Fps.writeByte(0);
-					Fps.writeByte(0xFF);
-					Fps.writeByte(0);//link time
-					Fps.init(&FtxBuffer.data[0],Fps.length());
-					handleMessage();
-
-					//close it
-					if (1==2){
-						for (int i=0; i<=1; i++){
 							Fps.init(&FtxBuffer.data[0]);
-							Fps.setHeader(2,1,Connections::FIRST_PORT+i,TvbusProtocoll::port_close);
-							Fps.writeByte(2-i);//client port
+							Fps.setHeader(0xFF,0xCC,0,TvbusProtocoll::dhcp_set);
+							Fps.writeByte(6);
+							Fps.writeString("NUCLEO1");
+							Fps.init(&FtxBuffer.data[0],Fps.length());
+							Fdhcp.handleMessage(Fps);
+
+							if (1 == 2){
+								Fps.init(&FtxBuffer.data[0]);
+								Fps.setHeader(0xFF,0xCC,0,TvbusProtocoll::ds_type_req);
+								Fps.writeByte(13);	//client port
+								Fps.writeByte(3);
+								Fps.writeByte(1);
+								Fps.writeByte(0);
+								Fps.writeByte(0xFF);
+								auto len = Fps.length();
+								Fps.init(&FtxBuffer.data[0],Fps.length());
+								handleMessage();
+								Fps.init(&FtxBuffer.data[0],len);
+								handleMessage();						
+							}
+
+							for (int i=0; i<4; i++){
+								Fps.init(&FtxBuffer.data[0]);
+								Fps.setHeader(6,5,0,TvbusProtocoll::port_open);
+								Fps.writeByte(1+i);//client port
+								Fps.init(&FtxBuffer.data[0],Fps.length());
+								handleMessage();
+							}
+
+							for (int i=0; i<4; i++){
+								Fps.init(&FtxBuffer.data[0]);
+								Fps.setHeader(6,5,0,TvbusProtocoll::port_open);
+								Fps.writeByte(1+i);//client port
+								Fps.init(&FtxBuffer.data[0],Fps.length());
+								handleMessage();
+							}
+
+							//FPDW
+							Fps.init(&FtxBuffer.data[0]);
+							Fps.setHeader(6,5,0,TvbusProtocoll::ds_fpdw_req);
+							Fps.writeByte(14); //client port
+							Fps.writeByte(2);
+							Fps.writeByte(0);
+							Fps.writeByte(2);
+							dtypes::uint32 val = 10;
+							Fps.writeVal(val);
 							Fps.init(&FtxBuffer.data[0],Fps.length());
 							handleMessage();
-						}
-					}
 
-					//Fstream->debugReadMessage(&FtxBuffer.data[0],Fps.length());
-					//Fdhcp.handleMessage(FpsRead);
+							Fps.init(&FtxBuffer.data[0]);
+							Fps.setHeader(6,5,10,TvbusProtocoll::ds_link_req);
+							Fps.writeByte(2);
+							Fps.writeByte(0);
+							Fps.writeByte(2);
+							Fps.writeByte(0);//link time
+							Fps.init(&FtxBuffer.data[0],Fps.length());
+							handleMessage();
+
+							stimul_status = 1;
+							FevStimul.setTimeEvent(10);
+
+							//close it
+							if (1==2){
+								for (int i=0; i<=1; i++){
+									Fps.init(&FtxBuffer.data[0]);
+									Fps.setHeader(2,1,Connections::FIRST_PORT+i,TvbusProtocoll::port_close);
+									Fps.writeByte(2-i);//client port
+									Fps.init(&FtxBuffer.data[0],Fps.length());
+									handleMessage();
+								}
+							}
+
+							//Fstream->debugReadMessage(&FtxBuffer.data[0],Fps.length());
+							//Fdhcp.handleMessage(FpsRead);
+						}
+						break;
+					case 1:
+						//FPDW
+						Fps.init(&FtxBuffer.data[0]);
+						Fps.setHeader(6,5,0,TvbusProtocoll::ds_fpdw_req);
+						Fps.writeByte(14); //client port
+						Fps.writeByte(2);
+						Fps.writeByte(0);
+						Fps.writeByte(2);
+						uint32Val = 10;
+						Fps.writeVal(uint32Val);
+						Fps.init(&FtxBuffer.data[0],Fps.length());
+						handleMessage();
+						stimul_status = 2;
+						FevStimul.setTimeEvent(10);
+						break;
+
+					case 2:
+						//link data
+						Fps.init(&FtxBuffer.data[0]);
+						Fps.setHeader(6,5,10,TvbusProtocoll::ds_link);
+						Fps.writeByte(1);		//firstItemIdx;
+						uint32Val = 15;
+						Fps.writeVal(uint32Val);
+						Fps.init(&FtxBuffer.data[0],Fps.length());
+						handleMessage();
+						break;
+
+
 				}
-#endif
 			}
+#endif
+
 			else{
 				handleEvent(_ev);
 			}

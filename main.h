@@ -58,6 +58,13 @@ class TuserStruct : public TmenuHandle{
 					timer.start(1000);
 				};
 
+				on(val2){
+					int i = 0;
+					if (i > 1){
+						i++;
+					}
+				};
+
             }
 } userStruct;
 

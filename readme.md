@@ -16,7 +16,120 @@
 To use `vbusSpike`, you will need:
 - [SDDS Library](https://github.com/mLamneck/SDDS) installed.
 
-### Installation
+
+## Documentation
+
+### The Protocoll
+
+#### The Protocoll - Header
+
+| Ctrl		| Destiny | Source       	| Port  	| Func |
+|----------	|-----------------	|------	| -| -
+
+#### The Protocoll - Functions
+
+
+|			| Function        	| Hex  	|
+|----------	|-----------------	|------	|
+|<b>Dhcp: 				 				|
+|			| dhcp_queryReq   	| 0x01 	|
+|			| dhcp_set		  	| 0x02 	|
+|			| dhcp_req		  	| 0x03 	|
+|			| dhcp_whoIsReq	  	| 0x05 	|
+|			| dhcp_ka		  	| 0x06 	|
+|			| dhcp_imServer   	| 0x08 	|
+|<b>Connections:					 	|
+|			| port_open		  	| 0x0A 	|
+|			| port_close	  	| 0x0C 	|
+|<b>Dns:				 				|
+|			| dns_req		  	| 0x19 	|
+|			| dns			  	| 0x18 	|
+|<b>Dataserver:				 			|	
+|			| ds_type			| 0x20 	|
+|			| ds_type_req		| 0x21 	|
+|			| ds_link			| 0x22 	|
+|			| ds_type_req		| 0x23 	|
+|			| ds_fpdr			| 0x24 	|
+|			| ds_fpdr_req		| 0x25 	|
+|			| ds_fpdw			| 0x26 	|
+|			| ds_fpdw_req		| 0x27 	|
+|<b>Error:				 			|	
+|			| func_error		| 0xFE 	|
+
+
+#### The Protocoll - Error Codes
+
+
+| Error	        	| Hex  	|
+|------------------	|------	|
+| err_serverBusy	| 0xFF 	|
+| err_invalidPort	| 0xFE 	|
+| err_noMorePorts 	| 0xEB	|
+
+#### Connections
+
+|				| Ctrl		| Destiny 	| Source    | Port 	| Func 	| Data		|
+|-				| -			|- 		  	| -			| -		| -		| :- 		|
+|<b>Req 		| AddrSize	| sAddr 	| cAddr		| 0		| 0x0A	| cPort	 	|
+|<b>Ans 		| AddrSize	| cAddr 	| sAddr		| cPort	| 0x0B	| sPort		|
+
+Possible Errors:
+* err_noMorePorts
+
+#### Dns
+
+##### Dns Request
+|				| Ctrl		| Destiny 	| Source    | Port 	| Func 	| Data								|
+|-				| -			|- 		  	| -			| -		| -		| :- 								|
+|<b>Req 		| AddrSize	| sAddr 	| cAddr		| 0		| 0x19	| cPort \| path 	\| textPath  	|
+|<b>Ans 		| AddrSize	| cAddr 	| sAddr		| cPort	| 0x18	| path 								|
+
+Possible Errors:
+* err_invalidPath
+
+#### Dataserver
+
+#### Type Request
+
+|				| Ctrl		| Destiny 	| Source    | Port 	| Func 	| Data								|
+|-				| -			|- 		  	| -			| -		| -		| :- 								|
+|<b>Req 		| AddrSize	| sAddr 	| cAddr		| 0		| 0x21	| cPort \| path		 				|
+|<b>Ans 		| AddrSize	| cAddr 	| sAddr		| cPort	| 0x20	| msgCnt \| firstIdx \| descr 		|
+
+#### Type Descr
+
+|				| type		| option 	| #name 	| name 	| [enumData ]								|
+|-				| -			|- 		  	| -		  	| -		|	-										|
+| uint16		| 0x02		| 0 		| 3			| var	|	-										|
+| int32			| 0x14		| 0 		| 5			| int32	|											|
+| enum			| 0x01		| 0 		| 4			| enum	| typeExt \| <b>toDo ...					|
+
+
+Possible Errors:
+* err_invalidPort
+* err_invalidPath
+
+#### Link Request
+
+|				| Ctrl		| Destiny 	| Source    | Port 	| Func 	| Data								|
+|-				| -			|- 		  	| -			| -		| -		| :- 								|
+|<b>Req 		| AddrSize	| sAddr 	| cAddr		| sPort	| 0x23	| path 	\| binary data 				|
+|<b>Ans 		| AddrSize	| cAddr 	| sAddr		| cPort	| 0x22	| msgCnt \| firstIdx \| binary data |
+
+Possible Errors:
+* err_invalidPort
+* err_invalidPath
+
+#### Full Path Data Write Request
+
+|			| Ctrl		| Destiny 	| Source    | Port 	| Func 	| 		 	Data					|
+|-			| -			|- 		  	| -			| -		| -		| :- 								|
+|<b>Req 	| AddrSize	| sAddr 	| cAddr		|0		| 0x26	| cPort \| path 	\| binary data 	|
+|<b>Ans 	| AddrSize	| cAddr 	| sAddr		|5		| 0x27	| -									|		
+
+Possible Errors:
+* err_invalidPath
+
 
 
 ## Contributing

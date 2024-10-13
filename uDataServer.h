@@ -39,7 +39,7 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 		}
 
 		bool writeEnums(TprotStream& _msg, TypeST& _typeST, TenumBase* en){
-			_msg.writeVal(0x01);
+			_msg.writeVal(0x01);			//typeId of enum = 0x01 on bus protocol
 			_msg.writeVal(en->option());
 			if (_typeST.FtypeEnumIdx == 0 && _typeST.FtypeEnumPos == 0){
 				_msg.writeString(en->name());
@@ -82,9 +82,9 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 			return complete;
 		}
 
-		TexecRes handleTypeThread(TprotStream& _msg, TypeST& _typeST){
+		void handleTypeThread(TprotStream& _msg, TypeST& _typeST){
 			Tdescr* d = _typeST.FtypeCurrItem;
-			if (!d) return TexecRes::noMessage;
+			if (!d) return;
 
 			_msg.setHeader(_typeST.FtypeClientAddr,_typeST.FtypeClientPort,TvbusProtocoll::ds_type);
 			_msg.writeVal(_typeST.FtypeMsgCnt++);
@@ -112,36 +112,9 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 			}
 			if(_typeST.FtypeCurrItem) 
 				_typeST.Fevent.setTimeEvent(10);
-			else _msg.msgCnt(_msg.msgCnt() | 0x80);
+			else _msg.msgCnt(_msg.msgCnt() | TvbusProtocoll::fLAST_MSG);
+
 			_msg.setSendPending();
-			return TexecRes::sendMessage;
-		}
-
-		void handleTypeRequest(TprotStream& _ps,  TmenuHandle* _root){
-			Tport clientPort;
-			if (!_ps.readVal(clientPort)) return;
-
-			//reply with error if server is busy			
-			if (FtypeST.FtypeCurrItem) return  _ps.buildErrMsg(TvbusProtocoll::err_serverBusy,clientPort);
-
-			//reply with error for wrong path
-			TbinLocator l;
-			if (!l.locate(_ps,_root)) return _ps.buildErrMsg(TvbusProtocoll::err_invalidPath,clientPort);
-			startTypeThread(FtypeST,_ps.source(),clientPort,l);
-		}
-
-		void handleLinkRequest(TprotStream& _ps,  TmenuHandle* _root, Tconnection* _conn){
-			//reply with error for wrong path
-			TbinLocator l;
-			if (!l.locate(_ps,_root)) return _ps.buildErrMsg(TvbusProtocoll::err_invalidPath,_conn->clientPort());
-
-			/*
-			_conn->setupLink(owner(),l.menu(),_ps.port());
-			l.menu()->events()->push_first(&_conn->FobjEvent);
-			*/
-			_conn->setupLink(owner(),_ps.port(),l);
-			setMsgRequest(_conn->FobjEvent.event(),true);
-			_conn->FobjEvent.signal();
 		}
 
 		/**
@@ -152,7 +125,7 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 		 * @return true 
 		 * @return false 
 		 */
-		bool writeValue(TprotStream& _msg, const Ttime* _time){
+		bool writeValueToStream(TprotStream& _msg, const Ttime* _time){
 			if (_msg.spaceAvailableForWrite() < 6) return false;
 			dtypes::TdateTime t = *_time;
 			//convert internal time in (s and us since epoch) into protocoll time (unit 50us since epoch)
@@ -161,16 +134,154 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 			return true;
 		}
 
-		bool writeValue(TprotStream& _msg, Tdescr* _val){
+		bool writeValueToStream(TprotStream& _msg, Tdescr* _val){
 			auto typeId = _val->typeId();
 
 			if (typeId >= sdds::typeIds::first_compose_type)
 			return _msg.writeWord(1);
 
 			if (typeId == sdds::typeIds::time)
-				return writeValue(_msg,static_cast<Ttime*>(_val));
+				return writeValueToStream(_msg,static_cast<Ttime*>(_val));
 			
 			return _msg.writeBytes(_val->pValue(),_val->valSize(),true);
+		}
+
+		bool writeValueToStruct(TprotStream& _msg, Tdescr* _val){
+			auto valSize = _val->valSize();
+			return _msg.readBytes(_val->pValue(),valSize);
+		}
+
+		void writeValuesToStruct(TprotStream& _msg, TmenuHandle* s, int _firstItemIdx, Tport _port = 0){
+			int nItemsWritten = 0;
+			auto curr = s->get(_firstItemIdx);
+			while (curr){
+				if (!writeValueToStruct(_msg,curr)) break;
+				curr->callbacks()->emit();
+				nItemsWritten++;
+				curr = curr->next();
+			}
+			s->events()->signal(_firstItemIdx,nItemsWritten,_port);
+		}
+
+		/**
+		 * @brief handle message with func = ds_type_req
+		 * 
+		 * @param _msg streaming object
+		 * @param _root ptr to the root object
+		 */
+		void handleTypeRequest(TprotStream& _msg,  TmenuHandle* _root){
+			Tport clientPort;
+			if (!_msg.readVal(clientPort)) return;
+
+			//reply with error if server is busy			
+			if (FtypeST.FtypeCurrItem) return  _msg.buildErrMsg(TvbusProtocoll::err_serverBusy,clientPort);
+
+			//reply with error for wrong path
+			TbinLocator l;
+			if (!l.locate(_msg,_root)) return _msg.buildErrMsg(TvbusProtocoll::err_invalidPath,clientPort);
+			startTypeThread(FtypeST,_msg.source(),clientPort,l);
+		}
+
+		/**
+		 * @brief handle message with func = ds_link_req
+		 * 
+		 * @param _msg streaming object
+		 * @param _root ptr to the root object
+		 * @param _conn connection associated with the server port in the message 
+		 */
+		void handleLinkRequest(TprotStream& _msg,  TmenuHandle* _root, Tconnection* _conn){
+			//reply with error for wrong path
+			TbinLocator l;
+			if (!l.locate(_msg,_root)) return _msg.buildErrMsg(TvbusProtocoll::err_invalidPath,_conn->clientPort());
+
+			/*
+			_conn->setupLink(owner(),l.menu(),_ps.port());
+			l.menu()->events()->push_first(&_conn->FobjEvent);
+			*/
+			_conn->setupLink(owner(),_msg.port(),l);
+			setMsgRequest(_conn->FobjEvent.event(),true);
+			_conn->FobjEvent.signal(l.firstItemIdx(),l.lastItemIdx());
+		}
+
+		/**
+		 * @brief handle message with funf = ds_link and write data to structure associated with the given port number
+		 * 
+		 * @param _msg streaming object
+		 * @param _root ptr to the root object
+		 * @param _conn connection associated with the server port in the message 
+		 */
+		void handleLinkData(TprotStream& _msg,  TmenuHandle* _root, Tconnection* _conn){
+			TpathEntry firstIdx = 0;
+			if (!_msg.readVal(firstIdx)) return;
+			writeValuesToStruct(_msg,_conn->FobjEvent.Fstruct,firstIdx,_msg.port());
+		}
+
+		/**
+		 * @brief handle message with func = ds_fpdw_req and write data to structure associated with the given path
+		 * 
+		 * @param _msg streaming object
+		 * @param _root ptr to the root object
+		 */
+		void handleFPDW(TprotStream& _msg, TmenuHandle* _root){
+			Tport clientPort;
+			if (!_msg.readVal(clientPort)) return;
+
+			//reply with error for wrong path
+			TbinLocator l;
+			if (!l.locate(_msg,_root)) return _msg.buildErrMsg(TvbusProtocoll::err_invalidPath,clientPort);
+			
+			//toDo: check for array
+			writeValuesToStruct(_msg,l.menu(),l.firstItemIdx());
+			_msg.setReturnHeader(clientPort);
+			_msg.setSendPending();
+		}
+
+		/**
+		 * @brief handle a message with serverPort != 0
+		 * 
+		 * @param _msg streaming object
+		 * @param _root ptr to the root object
+		 * @param _conn connection associated with the server port in the message 
+		 * @return ThandleMessageRes 
+		 */
+		ThandleMessageRes handleMessage(TprotStream& _msg, TmenuHandle* _root, Tconnection* _conn){
+			switch (_msg.func()){
+				case TvbusProtocoll::ds_link: 
+					handleLinkData(_msg,_root,_conn);
+					break;
+
+				case TvbusProtocoll::ds_link_req: 
+					handleLinkRequest(_msg,_root,_conn);
+					break;
+				
+				default : return ThandleMessageRes::notMyBusiness; 
+			}
+			return ThandleMessageRes::handled;
+		}
+		
+		/**
+		 * @brief handle a message with port = 0 
+		 * 
+		 * @param _msg streaming object
+		 * @param _root ptr to the root object
+		 * @return ThandleMessageRes 
+		 */
+		ThandleMessageRes handleMessage(TprotStream& _msg, TmenuHandle* _root){
+			switch (_msg.func()){
+				case TvbusProtocoll::ds_type_req: 
+					handleTypeRequest(_msg,_root);
+					break;
+
+				case TvbusProtocoll::ds_fpdw_req:
+					handleFPDW(_msg,_root);
+					break;
+
+				case TvbusProtocoll::ds_fpdr_req:
+					break;
+				
+				default : return ThandleMessageRes::notMyBusiness; 
+			}
+			return ThandleMessageRes::handled;
 		}
 
 		/**
@@ -194,7 +305,7 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 			_msg.writeVal(currIdx);
 
 			do{
-				if (!writeValue(_msg,curr)){
+				if (!writeValueToStream(_msg,curr)){
 					if (_msgCnt == 0 && _conn->FdataThread.busy())
 						return false;
 					_conn->FdataThread.FmsgCnt = _msgCnt+1;
@@ -221,10 +332,9 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 		 * @param _msg 
 		 * @return constexpr TexecRes 
 		 */
-		constexpr TexecRes execute(Tevent* _ev, TprotStream& _msg){
+		constexpr void execute(Tevent* _ev, TprotStream& _msg){
 			if (_ev == &FtypeST.Fevent)
-				return handleTypeThread(_msg,FtypeST);
-			return TexecRes::noMessage;
+				handleTypeThread(_msg,FtypeST);
 		}
 
 		/**
@@ -235,50 +345,17 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 		 * @param _conn 
 		 * @return constexpr TexecRes 
 		 */
-		constexpr TexecRes execute(Tevent* _ev, TprotStream& _msg, Tconnection* _conn){
+		constexpr void execute(Tevent* _ev, TprotStream& _msg, Tconnection* _conn){
 			if (_conn->isDataEvent(_ev)){
 				auto ev = TobjectEvent::retrieve(_ev);
 				builLinkDataMsg(_msg,_conn,ev->first(),ev->last(),0);
-				return TexecRes::sendMessage; 
 			}
 
 			else if (_ev == &_conn->FdataThread.Fevent){
-				if (builLinkDataMsg(_msg,_conn,_conn->FdataThread.FcurrIdx,_conn->FdataThread.FlastIdx,_conn->FdataThread.FmsgCnt)){
-					//mark dataThread to be idle;
-				};
+				if (builLinkDataMsg(_msg,_conn,_conn->FdataThread.FcurrIdx,_conn->FdataThread.FlastIdx,_conn->FdataThread.FmsgCnt))
+					_conn->FdataThread.resetBusy();
 			}
-
-			return TexecRes::noMessage;
 		}
-
-		ThandleMessageRes handleMessage(TprotStream& _ps, TmenuHandle* _root, Tconnection* _conn){
-			switch (_ps.func()){
-				case TvbusProtocoll::ds_link_req: 
-					handleLinkRequest(_ps,_root,_conn);
-					break;
-				
-				default : return ThandleMessageRes::notMyBusiness; 
-			}
-			return ThandleMessageRes::handled;
-		}
-		
-		ThandleMessageRes handleMessage(TprotStream& _ps, TmenuHandle* _root){
-			switch (_ps.func()){
-				case TvbusProtocoll::ds_type_req: 
-					handleTypeRequest(_ps,_root);
-					break;
-
-				case TvbusProtocoll::ds_fpdr_req:
-					break;
-
-				case TvbusProtocoll::ds_fpdw_req:
-					break;
-				
-				default : return ThandleMessageRes::notMyBusiness; 
-			}
-			return ThandleMessageRes::handled;
-		}
-
 };
 
 #endif

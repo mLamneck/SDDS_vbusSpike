@@ -34,11 +34,11 @@ namespace vbusSpike{
 		typedef typename TprotStream::t_prot_msgCnt TmsgCnt; 
 
 		Tevent Fevent;
-		TmenuHandle* Fstruct = nullptr;
-		TmsgCnt FmsgCnt;
+		TmsgCnt FmsgCnt = 0;
 		TpathEntry FcurrIdx;
 		TpathEntry FlastIdx;
-		bool busy() { return Fstruct != nullptr; }
+		bool busy() { return FmsgCnt != 0; }
+		void resetBusy() { FmsgCnt = 0; }
 	};
 
 	template <class TprotStream>
@@ -61,6 +61,9 @@ namespace vbusSpike{
 			void shutdown(){
 				FclientPort = 0;
 				FobjEvent.cleanup();
+				FobjEvent.setOwner(nullptr);
+				FdataThread.Fevent.reclaim();
+				FdataThread.Fevent.setOwner(nullptr);
 			}
 
 			template <class _Tlocator>
@@ -215,16 +218,15 @@ class Tconnections : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_
 			return ThandleMessageRes::handled;
 		}
 
-		constexpr TexecRes execute(Tevent* _ev, TprotStream& _ps){
+		void execute(Tevent* _ev, TprotStream& _msg){
 			if (_ev == &FevKa){
 				while (FkaCurrIdx<Fconnections.MAX_OBJECTS){
 					auto conn = Fconnections.get(FkaCurrIdx++);
 					if (!conn->isFree() && !conn->hasTxActivity()){
-						_ps.setHeader(conn->clientAddr(),0,conn->clientPort(),TvbusProtocoll::port_ka);
-						//_ps.setHeader(0xFF,0,conn->clientPort(),TvbusProtocoll::port_ka);
-						_ps.writePort(FkaCurrIdx + FIRST_PORT - 1);
+						_msg.setHeader(conn->clientAddr(),0,conn->clientPort(),TvbusProtocoll::port_ka);
+						_msg.writePort(FkaCurrIdx + FIRST_PORT - 1);
 						FevKa.setTimeEvent(KEEP_ALIVE_DELAY);
-						return TexecRes::sendMessage;
+						_msg.setSendPending();
 					}
 				}
 
@@ -238,7 +240,6 @@ class Tconnections : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_
 				FevKa.setTimeEvent(KEEP_ALIVE_TIME);
 				FkaCurrIdx = 0;
 			}
-			return TexecRes::noMessage;
 		}
 
 };
