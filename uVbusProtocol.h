@@ -5,6 +5,11 @@
 
 class TvbusProtocoll{
 	public:
+		/**  */
+		static constexpr dtypes::uint8 fLAST_MSG = 0x80;
+
+		/** func */
+		
 		static constexpr auto request = 0x01;
 
 		static constexpr auto dhcp_firstFunc = 0x00;
@@ -35,6 +40,8 @@ class TvbusProtocoll{
 		static constexpr auto ds_fpdw_req = ds_fpdw | request;
 
 		static constexpr auto func_error = 0xFE;
+
+		/** error codes */
 
 		static constexpr auto err_serverBusy 	= 0xFF;
 		static constexpr auto err_invalidPort 	= 0xFE;
@@ -115,6 +122,11 @@ class TbufferStream{
 		bool writeByte(const uint8 _byte){ return writeVal(_byte); }
 		bool writeWord(const dtypes::uint16 _val){ return writeVal(_val); }
 		
+		void writeBytesNoCheck(const void* _ptr, int _n){
+			memcpy(&Fbuffer[FwritePos], _ptr, _n);
+			FwritePos += _n;
+		}
+
 		int writeBytes(const void* _ptr, int _n, bool _skipIfdoesntFit = false){
 			auto spaceAvailable = spaceAvailableForWrite();
 			if (_n > spaceAvailable){
@@ -342,7 +354,7 @@ class TvbusProtStream : public TbufferStream{
 typedef TvbusProtStream<
 	dtypes::uint8, 
 	dtypes::uint8,
-	64
+	32
 > Tvbus485ProtStream; 
 
 

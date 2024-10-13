@@ -74,6 +74,7 @@ class TvbusSpikeBase : public Tthread{
 			Fps.source(Fdhcp.myAddr());
 			sendMessage(Fps.buffer(),Fps.length());
 		};
+		void checkSendMessage(){ if (Fps.sendPending()) sendMessage(); }
 
 		void handleMessage(){
 			auto port = Fps.port();
@@ -152,9 +153,8 @@ class TvbusSpikeBase : public Tthread{
 				return;
 			}
 			
-			auto tag = _ev->args.byte0;
-			auto msgRequest = tag & TcommThreadDefs::MSG_REQ_FLAG;
-			auto id = tag & ~TcommThreadDefs::MSG_REQ_FLAG;
+			auto msgRequest = TcommThreadDefs::msgRequest(_ev);
+			auto id = TcommThreadDefs::eventCommId(_ev);
 			if (msgRequest){
 				/*
 				 * this should never happen
@@ -165,17 +165,22 @@ class TvbusSpikeBase : public Tthread{
 				}
 				auto buf = Fstream->getTxBuffer();
 				Fps.init(buf->data);
-				if (_ev->args.word1 > 0){
-					auto conn = Fconnections.getConnection(_ev->args.word1);
+
+				/**
+				 * Deal with events associated with a connection:
+				 * 
+				 * for now Dataserver is the only one that deals with connections so we don't
+				 * have to check for the ID to match
+				 */
+				auto portNum = TcommThreadDefs::eventPort(_ev);
+				if (portNum > 0){
+					auto conn = Fconnections.getConnection(portNum);
 					if (!conn) return;
-					/**
-					 * for now Dataserver is the only one that deals with connections so we don't
-					 * have to check for the ID to match
-					 */
-					if (FdataServer.execute(_ev,Fps,conn) == TcommThreadDefs::TexecRes::sendMessage)
-						sendMessage();
-					return;
+					FdataServer.execute(_ev,Fps,conn);
+					return checkSendMessage();
 				}
+
+
 				else{
 					switch (id)
 					{

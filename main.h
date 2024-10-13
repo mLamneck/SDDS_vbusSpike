@@ -24,10 +24,14 @@ class TuserStruct : public TmenuHandle{
 	int status = 0;
     public:
         sdds_struct(
-			sdds_var(Tuint8,val1)
-			sdds_var(Tuint8,val2)
-			sdds_var(Tuint8,val3)
-			sdds_var(Tuint8,val4)
+			sdds_var(Tuint32,val1)
+			sdds_var(Tuint32,val2)
+			sdds_var(Ttime,time,0,stringToTime("12.10.2024 10:47:00"))
+			sdds_var(Tuint32,val3)
+			sdds_var(Tuint32,val4)
+			sdds_var(Tuint32,val5)
+			sdds_var(Tuint32,val6)
+			sdds_var(Tuint32,val7)
 			sdds_var(TsubMenu,sub)
         )
         public:

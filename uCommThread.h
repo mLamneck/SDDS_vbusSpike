@@ -26,6 +26,20 @@ class TcommThreadDefs{
 		constexpr static int ID_DATASERVER = 7;
 		enum class TexecRes {idle,noMessage,sendMessage};
 		enum class ThandleMessageRes : int {handled, notMyBusiness};
+
+		/**
+		 * @brief usage of generic eventArg
+		 * 
+		 * byte0 = id of commThread
+		 * byte1 = msgRequest (the thread with this event wants to send a message)
+		 * word1 = port number
+		 */
+		static void eventCommId(Tevent* _ev, const dtypes::uint8 _val){ _ev->args.byte0 = _val; }
+		static dtypes::uint8 eventCommId(Tevent* _ev){ return _ev->args.byte0; }
+		static void setMsgRequest(Tevent* _ev, const dtypes::uint8 _val){ _ev->args.byte1 = _val; }
+		static dtypes::uint8 msgRequest(Tevent* _ev){ return _ev->args.byte1; }
+		static void eventPort(Tevent* _ev, dtypes::uint16 _val){ _ev->args.word1 = _val; }
+		static dtypes::uint16 eventPort(Tevent* _ev){ return _ev->args.word1; }
 };
 
 template <int _ID>
@@ -37,17 +51,6 @@ class TcommThread : public TcommThreadDefs{
 		constexpr static void initEvent(Tevent& _ev, Tthread* _owner){
 			_ev.args.byte0 = ID;
 			_ev.setOwner(_owner);
-		}
-
-		void setMsgRequest(Tevent& _ev){
-			_ev.args.byte0 = ID | 0x80;
-		}
-		void setMsgRequest(Tevent* _ev){
-			_ev->args.byte0 = ID | 0x80;
-		}
-
-		bool isMsgRequest(Tevent& _ev){
-			return (_ev.args.byte0 && 0x80);
 		}
 
 		void trigger(Tevent& _ev){

@@ -111,9 +111,9 @@ class Tdhcp : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_DHCP>{
 		void init(Tthread* _thread){			
 			initEvent(FclientTimer,_thread);
 			initEvent(FserverTimer,_thread);
-			setMsgRequest(FclientTimer);
+			setMsgRequest(&FclientTimer,true);
 			FclientTimer.signal();
-			setMsgRequest(FserverTimer);
+			setMsgRequest(&FserverTimer,true);
 			resetDhcpServer();
 #if MARKI_DEBUG_PLATFORM == 1
 			static bool __first_dhcp = true;

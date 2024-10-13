@@ -26,19 +26,33 @@ namespace vbusSpike{
 		dtypes::uint8 FtypeEnumPos = 0;
 	};
 
-	class TdataEvent : public TobjectEvent{
+	template <class TprotStream>
+	struct TdataST{
+		typedef typename TprotStream::t_prot_port Tport;
+		typedef typename TprotStream::t_prot_addr Taddr;
+		typedef typename TprotStream::t_path_entry TpathEntry; 
+		typedef typename TprotStream::t_prot_msgCnt TmsgCnt; 
 
+		Tevent Fevent;
+		TmenuHandle* Fstruct = nullptr;
+		TmsgCnt FmsgCnt;
+		TpathEntry FcurrIdx;
+		TpathEntry FlastIdx;
+		bool busy() { return Fstruct != nullptr; }
 	};
 
-	template <typename Taddr, typename Tport>
+	template <class TprotStream>
 	class Tconnection{
+		typedef typename TprotStream::t_prot_addr Taddr;
+		typedef typename TprotStream::t_prot_port Tport;
 		private:
 			bool FtxActivity = false;
 			bool FrxActivity = false;
 		public:
 			Taddr FclientAddr;
 			Tport FclientPort;
-			TdataEvent FobjEvent;
+			TobjectEvent FobjEvent;
+			TdataST<TprotStream> FdataThread;
 
 			bool isDataEvent(Tevent* _ev){ return FobjEvent.event() == _ev; }
 			bool isFree() { return (FclientPort == 0); }
@@ -49,6 +63,16 @@ namespace vbusSpike{
 				FobjEvent.cleanup();
 			}
 
+			template <class _Tlocator>
+			void setupLink(Tthread* _thread, Tport _servPort, _Tlocator& l){
+				FobjEvent.setOwner(_thread);
+				TcommThreadDefs::eventPort(FobjEvent.event(),_servPort);
+				FdataThread.Fevent.setOwner(_thread);
+				TcommThreadDefs::eventPort(&FdataThread.Fevent,_servPort);
+				FobjEvent.setObservedRange(l);
+				FobjEvent.Fstruct->events()->push_first(&FobjEvent);	
+			}
+			
 			void setupLink(Tthread* _thread, TmenuHandle* _struct, dtypes::uint16 _port){
 				FobjEvent.setOwner(_thread);
 				FobjEvent.event()->args.word1 = _port;
@@ -73,14 +97,14 @@ class Tconnections : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_
 
 		void init(Tthread* _thread){
 			initEvent(FevKa,_thread);
-			setMsgRequest(FevKa);
+			TcommThreadDefs::setMsgRequest(&FevKa,true);
 			FevKa.setTimeEvent(KEEP_ALIVE_TIME);
 		}
 
+		typedef vbusSpike::Tconnection<TprotStream> Tconnection;
 	private:
 		typedef typename TprotStream::t_prot_port Tport;
 		typedef typename TprotStream::t_prot_addr Taddr;
-		typedef vbusSpike::Tconnection<Taddr,Tport> Tconnection;
 		typedef TobjectPool<Tconnection,MAX_PORT> Connections;
 
 		Connections Fconnections;
