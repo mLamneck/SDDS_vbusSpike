@@ -23,7 +23,6 @@ namespace vbusSpike{
 		Tdescr* FtypeLastItem = nullptr;
 		t_path_entry FtypeCurrIdx;
 		dtypes::uint8 FtypeEnumIdx = 0;
-		dtypes::uint8 FtypeEnumPos = 0;
 	};
 
 	template <class TprotStream>
@@ -92,7 +91,7 @@ template <class TprotStream>
 class Tconnections : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_CONNECTIONS>{
 	public:
 		constexpr static int FIRST_PORT = 10;
-		constexpr static int MAX_PORT = 2;
+		constexpr static int MAX_PORT = 22;
 
 		constexpr static int KEEP_ALIVE_TIME = 10000;
 		constexpr static int KEEP_ALIVE_DELAY = 10;

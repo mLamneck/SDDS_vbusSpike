@@ -34,10 +34,10 @@ class TvbusProtocoll{
 		static constexpr auto ds_type_req = 0x20 | request;
 		static constexpr auto ds_link = 0x22;
 		static constexpr auto ds_link_req = ds_link | request;
-		static constexpr auto ds_fpdr = 0x24;
-		static constexpr auto ds_fpdr_req = ds_fpdr | request;
-		static constexpr auto ds_fpdw = 0x26;
+		static constexpr auto ds_fpdw = 0x24;
 		static constexpr auto ds_fpdw_req = ds_fpdw | request;
+		static constexpr auto ds_fpdr = 0x26;
+		static constexpr auto ds_fpdr_req = ds_fpdr | request;
 
 		static constexpr auto func_error = 0xFE;
 
@@ -160,9 +160,15 @@ class TbufferStream{
 
 		template <typename T>
 		bool readVal(T& _value){
-			if (bytesAvailableForRead() < sizeof(T)) return false;
+			if (bytesAvailableForRead() < (int)sizeof(T)) return false;
 			memcpy(&_value,&Fbuffer[FreadPos], sizeof(T));
 			FreadPos += sizeof(T);
+			return true;
+		}
+
+		bool readOfs(dtypes::uint8 _ofs){
+			if (_ofs >= bytesAvailableForRead()) return false;
+			FreadPos += _ofs;
 			return true;
 		}
 

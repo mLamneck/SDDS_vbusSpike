@@ -225,16 +225,19 @@ class TvbusSpikeBase : public Tthread{
 		void virtual exec_applyToNet(Tevent* _ev) = 0;
 
 #if MARKI_DEBUG_PLATFORM == 1
-		void parseStr(const char* _in){
+		int parseStr(uint8_t* _out, const char* _in){
 			auto pEnd = _in + strlen(_in);
+			auto pOutStart = _out;
 			while (_in < pEnd) {
 				_in += 2;
 				dtypes::string byteString(_in,_in+2);
 				uint8_t b = static_cast<uint8_t>(
 					stoi(byteString, nullptr, 16));
-				Fps.writeByte(b);
+				//Fps.writeByte(b);
+				*_out++ = b;
 				_in+=3;
 			}
+			return _out - pOutStart;
 		}
 #endif
 
@@ -254,10 +257,9 @@ class TvbusSpikeBase : public Tthread{
 					case 0:
 						if (1==1){
 							if (1==1){
-								Fps.init(&FtxBuffer.data[0]);
-								Fps.setHeader(0xFF,0xFF,0,TvbusProtocoll::dhcp_req);
-								parseStr("0x7E 0xC1 0x0F 0x4D 0x6F 0x74 0x6F 0x34 0x38 0x35 0x47 0x2D 0x30 0x30 0x31 0x32 0x35 0x39");               
-								FtxBuffer.length = Fps.length();
+								//Fps.init(&FtxBuffer.data[0]);
+								//Fps.setHeader(0xFF,0xFF,0,TvbusProtocoll::dhcp_req);
+								FtxBuffer.length = parseStr(&FtxBuffer.data[0],"0x00 0x01 0x02 0x00 0x25 0x02 0x02 0x03 0x01 0xF9 0x42 0x50 0x00 0x00 0x00");
 								readMessage(&FtxBuffer);
 							}
 
@@ -268,19 +270,20 @@ class TvbusSpikeBase : public Tthread{
 							Fps.init(&FtxBuffer.data[0],Fps.length());
 							Fdhcp.handleMessage(Fps);
 
-							if (1 == 2){
+							if (1 == 1){
 								Fps.init(&FtxBuffer.data[0]);
 								Fps.setHeader(0xFF,0xCC,0,TvbusProtocoll::ds_type_req);
 								Fps.writeByte(13);	//client port
-								Fps.writeByte(3);
-								Fps.writeByte(1);
+								Fps.writeByte(2);
 								Fps.writeByte(0);
-								Fps.writeByte(0xFF);
+								Fps.writeByte(1);
 								auto len = Fps.length();
 								Fps.init(&FtxBuffer.data[0],Fps.length());
 								handleMessage();
 								Fps.init(&FtxBuffer.data[0],len);
-								handleMessage();						
+								handleMessage();	
+								stimul_status = 3;	
+								return;				
 							}
 
 							for (int i=0; i<4; i++){

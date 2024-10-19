@@ -35,51 +35,48 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 			_typeST.FtypeCurrItem = _l.firstItem();
 			_typeST.FtypeLastItem = _l.lastItem();
 			_typeST.FtypeCurrIdx = _l.firstItemIdx();
+			_typeST.FtypeMsgCnt = 0;
 			trigger(_typeST.Fevent);
 		}
 
+		/*		
+		20 80 
+		09 00	firstItemIdx 
+		01 00 05 65 6E 75 6D 32	//type/opt/name 
+		00	//typeExt reserved 
+		16	//bufferSize 
+		00	//idx 
+		02 6F 6E 03 6F 66 66 04 69 64 6C 65 04 68 65 61 74 04 63 6F 6F 6C 
+		*/
 		bool writeEnums(TprotStream& _msg, TypeST& _typeST, TenumBase* en){
-			_msg.writeVal(0x01);			//typeId of enum = 0x01 on bus protocol
-			_msg.writeVal(en->option());
-			if (_typeST.FtypeEnumIdx == 0 && _typeST.FtypeEnumPos == 0){
+			_msg.writeByte(0x01);			//typeId of enum = 0x01 on bus protocol
+			_msg.writeByte(en->option());
+			if (_typeST.FtypeEnumIdx == 0){
 				_msg.writeString(en->name());
 			}
 			else{
 				_msg.writeByte(0);
 			}
+
+			int enBufferSize = en->enumBufferSize();
+			const char* pEnumBuf = en->enumBuffer();
 			_msg.writeByte(0);		//typExt (future reserved)
+			_msg.writeByte(enBufferSize);
+			_msg.writeByte(_typeST.FtypeEnumIdx);
+			if (_typeST.FtypeEnumIdx == 0 )
+				_msg.writeByte(strlen(pEnumBuf));
 
-			//remind position of nBytesWritten and jmp over
-			int nBytesPos = _msg.writePos();
-			_msg.writeByte(0);
-
-			int bytesWritten = 0;
-			bool complete = true;
-			for (int i = _typeST.FtypeEnumIdx; i<en->enumCnt(); i++){
-				const char* enStr = en->getEnum(i);
-				int len = strlen(enStr);
-				if (_typeST.FtypeEnumPos == 0){
-					if (!_msg.writeByte(len)) {
-						complete = false;
-						break;
-					}
-					_typeST.FtypeEnumPos++;
-					bytesWritten++;
+			while (_typeST.FtypeEnumIdx < enBufferSize-1){
+				char c = pEnumBuf[_typeST.FtypeEnumIdx];
+				if (c=='\0'){
+					int enLength = strlen(pEnumBuf + _typeST.FtypeEnumIdx + 1);
+					if (!_msg.writeByte(enLength)) return false;
 				}
-				enStr += _typeST.FtypeEnumPos;
-				int n = _msg.writeBytes(enStr,len);
-				if (n < len){
-					_typeST.FtypeEnumPos += n;
-					bytesWritten += n;
-					complete = false;
-					break;
-				}
-				_typeST.FtypeEnumPos = 0;
+				else if (!_msg.writeByte(c)) return false;
 				_typeST.FtypeEnumIdx++;
 			}
 
-			_msg.writeByteToOfs(nBytesPos,bytesWritten);
-			return complete;
+			return true;
 		}
 
 		void handleTypeThread(TprotStream& _msg, TypeST& _typeST){
@@ -133,7 +130,17 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 			_msg.writeBytesNoCheck(&protTime,6); 
 			return true;
 		}
-
+		
+		bool writeValueToStruct(TprotStream& _msg, Ttime* _time){
+			dtypes::uint64 ticks = 0;
+			if (!_msg.readBytes(&ticks,6)) return false;
+			dtypes::TdateTime t;
+			t.tv_sec = ticks/20000;
+			t.tv_usec = ticks%20000;
+			memcpy(_time->pValue(),&t,sizeof(t));
+			return true;
+		}
+		
 		bool writeValueToStream(TprotStream& _msg, Tdescr* _val){
 			auto typeId = _val->typeId();
 
@@ -146,8 +153,22 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 			return _msg.writeBytes(_val->pValue(),_val->valSize(),true);
 		}
 
+
 		bool writeValueToStruct(TprotStream& _msg, Tdescr* _val){
+			auto typeId = _val->typeId();
+
+			if (typeId >= sdds::typeIds::first_compose_type)
+				return _msg.readOfs(2);
+
+			if (typeId == sdds::typeIds::time){
+				if (_val->readonly())
+					return _msg.readOfs(6);
+				return writeValueToStruct(_msg,static_cast<Ttime*>(_val));
+			}
+
 			auto valSize = _val->valSize();
+			if (_val->readonly())
+				return _msg.readOfs(valSize);
 			return _msg.readBytes(_val->pValue(),valSize);
 		}
 

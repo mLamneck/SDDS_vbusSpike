@@ -102,8 +102,15 @@ Possible Errors:
 |-				| -			|- 		  	| -		  	| -		|	-										|
 | uint16		| 0x02		| 0 		| 3			| var	|	-										|
 | int32			| 0x14		| 0 		| 5			| int32	|											|
-| enum			| 0x01		| 0 		| 4			| enum	| typeExt \| <b>toDo ...					|
+| enum			| 0x01		| 0 		| 4			| enum	| typeExt \| fullLen \| bufOfs |\ enums		|
 
+With
+* <b>typeExt:</b> is a byte for future reserved. At the moment it's always 0
+* <b>fullLen:</b> length of all enums concate
+* <b>bufPos:</b> first char in the complete buffer
+
+nTh		firstIdx	type/opt/name					typeExt		fullLength		strOfs
+80 		09 00 		01 00 05 65 6E 75 6D 32			 00 		16 				00 			02 6F 6E 03 6F 66 66 04 69 64 6C 65 04 68 65 61 74 04 63 6F 6F 6C 
 
 Possible Errors:
 * err_invalidPort
