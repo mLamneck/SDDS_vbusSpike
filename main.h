@@ -1,9 +1,23 @@
+#define DEBUG_COMMON_APP 1
+
 #include "uTypedef.h"
 #include "uVbusSpike.h"
 #include "uUart.h"
 
 TsimulUart simUart1("1uart");
 TsimulUart simUart2("2uart");
+
+class TLED{
+	public:
+		static void toggle(){ }
+};
+
+#if DEBUG_COMMON_APP == 1
+	#include "uApp.h"
+	TuserStruct userStruct;
+	TvbusSpike485 vsp(userStruct,&simUart1);
+
+#else
 
 class TsubMenu : public TmenuHandle{
 	Ttimer timer;
@@ -18,12 +32,14 @@ class TsubMenu : public TmenuHandle{
 			}
 };
 
+sdds_enum(on,off,idle,heat,cool) TonOffState;	//
 class TuserStruct : public TmenuHandle{
     Ttimer timer;
     Ttimer timer2;
 	int status = 0;
     public:
         sdds_struct(
+			sdds_var(TonOffState,enum0)
 			sdds_var(Tuint32,val1)
 			sdds_var(Tuint32,val2)
 			sdds_var(Ttime,time,0,stringToTime("12.10.2024 10:47:00"))
@@ -71,3 +87,6 @@ class TuserStruct : public TmenuHandle{
 
 TvbusSpike485 vsp(userStruct,&simUart1);
 //TvbusSpike485 vsp1(userStruct,&simUart2);
+
+#endif
+
