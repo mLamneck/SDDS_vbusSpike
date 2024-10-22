@@ -1,3 +1,4 @@
+/*
 #include "D:\Dropbox\projects\sdds\SDDS_git\src\uSpookyMacros.h"
 #include "D:\Dropbox\projects\sdds\SDDS_git\src\uEnumMacros.h"
 
@@ -13,3 +14,4 @@
     sdds_enumClass2(_name##_class,__VA_ARGS__);\
     typedef TenumTemplate<_name##_class> _name
 
+*/

@@ -1,7 +1,10 @@
 #include "uTypedef.h"
 #include "uMultask.h"
 
-sdds_enum(on,off,hold,hold1,hold2,hold3,hold4,hold5,hold6,hold7,hold8,hold9,hold10) TonOffState;
+//|2|o|n|3|o|f|f|4|h|o|l|d|5|h ..
+//|0|1|2|3|4|5|6|7|8|9|0|1|2|3|4|5|6|7|8|9|0|1|2|3|4|5|6|7|8|9| ..
+//|0|o|n|0|o|f|f|0|h|o|l|d|0|h|o|l|d|1|0|h|o|l|d|2|0|h|o|l|d|3| ..
+sdds_enum(on,off,hold,hold1,hold2,hold3) TonOffState;
 
 class TsubMenu : public TmenuHandle{
 	Ttimer timer;
@@ -21,6 +24,7 @@ class TuserStruct : public TmenuHandle{
 		Ttimer timer;
 		sdds_struct(
 				sdds_var(TonOffState,enum0)
+				sdds_var(TonOffState,enum1)
 				sdds_var(Tuint8,val,0,0)
 				sdds_var(Tuint16,val1,0,0)
 				sdds_var(TsubMenu,sub)

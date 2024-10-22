@@ -123,6 +123,15 @@ class TtestDns : public TtestCase{
 		var2=251
 		*/
         
+		/* this test is newly added and for string elements. The expResolvedPath here
+		 * is actually wrong. Strings should be treated like structs, so the path should be 4,1,8,0,255
+		*/
+		doTest([this](){
+            int rootPath[] = {2,0,max_elements};
+            int expResolvedPath[] = {3,1,8,1};
+			return testRequest(&rootPath[0],"allTypes/Fstr",&expResolvedPath[0]);
+        },"root -> allTypes/Fstr");
+
 		doTest([this](){
             int rootPath[] = {2,0,max_elements};
             int expResolvedPath[] = {2,0,1};
