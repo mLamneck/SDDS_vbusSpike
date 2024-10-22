@@ -105,6 +105,7 @@ class TvbusSpikeBase : public Tthread{
 			handleMessage();			
 			if (Fps.sendPending()){
 				if (txBusy()){
+					Fps.source(Fdhcp.myAddr());
 					_msg->containsAnswer = true;
 					_msg->length = Fps.length();
 					setPriority(2,false);	//don't handle messages until we are idle again
@@ -255,7 +256,7 @@ class TvbusSpikeBase : public Tthread{
 				dtypes::uint32 uint32Val = 0;
 				switch(stimul_status){
 					case 0:
-						if (1==1){
+						if (1==2){
 							if (1==1){
 								//Fps.init(&FtxBuffer.data[0]);
 								//Fps.setHeader(0xFF,0xFF,0,TvbusProtocoll::dhcp_req);
@@ -314,15 +315,6 @@ class TvbusSpikeBase : public Tthread{
 							Fps.init(&FtxBuffer.data[0],Fps.length());
 							handleMessage();
 
-							Fps.init(&FtxBuffer.data[0]);
-							Fps.setHeader(6,5,10,TvbusProtocoll::ds_link_req);
-							Fps.writeByte(2);
-							Fps.writeByte(0);
-							Fps.writeByte(2);
-							Fps.writeByte(0);//link time
-							Fps.init(&FtxBuffer.data[0],Fps.length());
-							handleMessage();
-
 							stimul_status = 1;
 							FevStimul.setTimeEvent(10);
 
@@ -340,9 +332,61 @@ class TvbusSpikeBase : public Tthread{
 							//Fstream->debugReadMessage(&FtxBuffer.data[0],Fps.length());
 							//Fdhcp.handleMessage(FpsRead);
 						}
-						break;
+						stimul_status = 1;
+
+					//first give an ID=6 per dhcp set
 					case 1:
-						//FPDW
+						Fps.init(&FtxBuffer.data[0]);
+						Fps.setHeader(0xFF,0xCC,0,TvbusProtocoll::dhcp_set);
+						Fps.writeByte(1);
+						Fps.writeString("NUCLEO1");
+						Fps.init(&FtxBuffer.data[0],Fps.length());
+						Fdhcp.handleMessage(Fps);
+						stimul_status = 20;
+						FevStimul.setTimeEvent(10);
+
+						//open port
+						Fps.init(&FtxBuffer.data[0]);
+						Fps.setHeader(1,3,0,TvbusProtocoll::port_open);
+						Fps.writeByte(1);//client port
+						Fps.init(&FtxBuffer.data[0],Fps.length());
+						handleMessage();
+						Fps.init(&FtxBuffer.data[0]);
+						Fps.setHeader(1,3,0,TvbusProtocoll::port_open);
+						Fps.writeByte(2);//client port
+						Fps.init(&FtxBuffer.data[0],Fps.length());
+						handleMessage();
+						
+						Fps.init(&FtxBuffer.data[0]);
+						Fps.setHeader(1,3,0x10,TvbusProtocoll::ds_link_req);
+						Fps.writeByte(2);
+						Fps.writeByte(0);
+						Fps.writeByte(255);
+						Fps.writeByte(0);//link time
+						Fps.init(&FtxBuffer.data[0],Fps.length());
+						handleMessage();
+
+						Fps.init(&FtxBuffer.data[0]);
+						Fps.setHeader(1,3,0x11,TvbusProtocoll::ds_link_req);
+						Fps.writeByte(2);
+						Fps.writeByte(0);
+						Fps.writeByte(255);
+						Fps.writeByte(0);//link time
+						Fps.init(&FtxBuffer.data[0],Fps.length());
+						handleMessage();
+
+						setTimeEvent(100);
+						stimul_status = 2;
+						break;
+								
+					case 2:
+						FtxBuffer.length = parseStr(&FtxBuffer.data[0],"0x00 0x01 0x03 0x11 0x22 0x80 0x02 0x0C");
+						readMessage(&FtxBuffer);
+						break;
+
+
+					//FPDW
+					case 20:
 						Fps.init(&FtxBuffer.data[0]);
 						Fps.setHeader(6,5,0,TvbusProtocoll::ds_fpdw_req);
 						Fps.writeByte(14); //client port
@@ -353,11 +397,28 @@ class TvbusSpikeBase : public Tthread{
 						Fps.writeVal(uint32Val);
 						Fps.init(&FtxBuffer.data[0],Fps.length());
 						handleMessage();
-						stimul_status = 2;
+						stimul_status = 21;
 						FevStimul.setTimeEvent(10);
 						break;
-
-					case 2:
+					
+					//type request
+					case 21:{
+						Fps.init(&FtxBuffer.data[0]);
+						Fps.setHeader(6,5,0,TvbusProtocoll::ds_type_req);
+						Fps.writeByte(13);	//client port
+						Fps.writeByte(2);
+						Fps.writeByte(0);
+						Fps.writeByte(255);
+						auto len = Fps.length();
+						Fps.init(&FtxBuffer.data[0],Fps.length());
+						handleMessage();
+						stimul_status = 30;	
+						break;
+					}
+					
+					case 30:
+						//message to set val to 12 that failed in reality
+						 
 						//link data
 						Fps.init(&FtxBuffer.data[0]);
 						Fps.setHeader(6,5,10,TvbusProtocoll::ds_link);
@@ -367,6 +428,9 @@ class TvbusSpikeBase : public Tthread{
 						Fps.init(&FtxBuffer.data[0],Fps.length());
 						handleMessage();
 						break;
+
+					
+					
 
 
 				}
