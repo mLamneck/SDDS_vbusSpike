@@ -8,6 +8,7 @@
 #ifndef UART_485_H_
 #define UART_485_H_
 
+#include "uUart.h"
 /*
  * Flags and timing sequences
  *
@@ -62,8 +63,12 @@ class Tuart_com7: public ThUart<USART1_BASE>, public Tuart {
 		}
 
 		void resetRxBusy() override {
+#ifdef __STM32G474xx_H
+			LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_0);
+#else
 			LL_EXTI_ClearFallingFlag_0_31 (LL_EXTI_LINE_0);
 			LL_EXTI_ClearRisingFlag_0_31(LL_EXTI_LINE_0);
+#endif
 		}
 
 		void switchToRx() override {
@@ -86,8 +91,12 @@ class Tuart_com7: public ThUart<USART1_BASE>, public Tuart {
 		}
 
 		bool rxBusy() {
+#ifdef __STM32G474xx_H
+			return LL_EXTI_ReadFlag_0_31(LL_EXTI_LINE_0);
+#else
 			return (LL_EXTI_ReadFallingFlag_0_31(LL_EXTI_LINE_0) > 0)
 				|| (LL_EXTI_ReadRisingFlag_0_31(LL_EXTI_LINE_0) > 0);
+#endif
 			/*
 			if (LL_EXTI_IsActiveRisingFlag_0_31(LL_EXTI_LINE_0) != RESET){
 				return true;
