@@ -90,7 +90,7 @@ namespace vbusSpike{
 template <class TprotStream>
 class Tconnections : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_CONNECTIONS>{
 	public:
-		constexpr static int FIRST_PORT = 10;
+		constexpr static int FIRST_PORT = 0x10;
 		constexpr static int MAX_PORT = 22;
 
 		constexpr static int KEEP_ALIVE_TIME = 10000;
@@ -127,7 +127,7 @@ class Tconnections : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_
 					idx = i;
 					break;
 				}
-				else if (conn->isFree()){
+				else if (conn->isFree() && (freeIdx == -1)){
 					freeIdx = i;
 				}
 			}
@@ -145,7 +145,7 @@ class Tconnections : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_
 
 		void handleOpenPortReq(TprotStream& _ps){
 			Tport clientPort;
-			if (!_ps.readVal(clientPort)) return; 
+			if (!_ps.readVal(clientPort)) return;
 			auto connIdx = allocateConnection(_ps.source(),clientPort);
 			if (connIdx > -1){
 				_ps.setReturnHeader(clientPort);
