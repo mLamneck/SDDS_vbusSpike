@@ -58,15 +58,13 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 				_msg.writeByte(0);
 			}
 
-			int enBufferSize = en->enumBufferSize();
+			int enBufferSize = en->enumBufferSize()-1;	//don't count \0 of last string for size
 			const char* pEnumBuf = en->enumBuffer();
 			_msg.writeByte(0);		//typExt (future reserved)
 			_msg.writeByte(enBufferSize);
 			_msg.writeByte(_typeST.FtypeEnumIdx);
-			if (_typeST.FtypeEnumIdx == 0 )
-				_msg.writeByte(strlen(pEnumBuf));
 
-			while (_typeST.FtypeEnumIdx < enBufferSize-1){
+			while (_typeST.FtypeEnumIdx < enBufferSize){
 				char c = pEnumBuf[_typeST.FtypeEnumIdx];
 				if (c=='\0'){
 					int enLength = strlen(pEnumBuf + _typeST.FtypeEnumIdx + 1);
@@ -76,6 +74,7 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 				_typeST.FtypeEnumIdx++;
 			}
 
+			_typeST.FtypeEnumIdx = 0;
 			return true;
 		}
 
@@ -233,6 +232,8 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 		 */
 		void handleLinkData(TprotStream& _msg,  TmenuHandle* _root, Tconnection* _conn){
 			TpathEntry firstIdx = 0;
+			TmsgCnt msgCnt = 0;
+			if (!_msg.readVal(msgCnt)) return;
 			if (!_msg.readVal(firstIdx)) return;
 			writeValuesToStruct(_msg,_conn->FobjEvent.Fstruct,firstIdx,_msg.port());
 		}
