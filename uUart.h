@@ -237,7 +237,7 @@ class Tuart : public Tthread{
 			FpTxMsg = nullptr;
 			if (FevTxIdleNotify){
 				#if MARKI_DEBUG_PLATFORM == 0
-					FevTxIdleNotify->signalFromIsr();	//isr not needed at the moment but it doesn't hurt
+					FevTxIdleNotify->signal();	//isr not needed at the moment but it doesn't hurt
 				#else
 					FevTxIdleNotify->setTimeEvent(2);
 				#endif
@@ -329,7 +329,7 @@ class Tuart : public Tthread{
 
 				//notify user we have a message
 				if (getMessage() && FevReveiveNotify)
-					FevReveiveNotify->signalFromIsr();
+					FevReveiveNotify->signal();
 #if DEBUG_UART_ECHO == 1
 				auto msg = getMessage();
 				while (msg){
