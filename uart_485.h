@@ -8,6 +8,7 @@
 #ifndef UART_485_H_
 #define UART_485_H_
 
+#include "mhal/uart.h"
 #include "uUart.h"
 /*
  * Flags and timing sequences
@@ -25,7 +26,11 @@
 class Tuart_com7: public ThUart<USART1_BASE>, public Tuart {
 
 #ifndef ARB_PIN
-		typedef TgpioPin<GPIOB_BASE, LL_GPIO_PIN_0> ARB_PIN;
+	#if defined(STM32C031xx)
+			typedef TgpioPin<GPIOB_BASE, LL_GPIO_PIN_0> ARB_PIN;
+	#elif defined(STM32G474xx)
+			typedef TgpioPin<GPIOA_BASE, LL_GPIO_PIN_10> ARB_PIN;
+	#endif
 #endif
 
 		volatile Tbyte* FtxPtr = nullptr;
@@ -49,12 +54,17 @@ class Tuart_com7: public ThUart<USART1_BASE>, public Tuart {
 			return false;
 		}
 
-		void sendAck() override {
+    void doSendAck(){
 			if (!rxBusy()){
 				transmit (ACK);
 				isr_rxne_disable();
 				isr_tc_enable();
 			}
+    }
+
+		void sendAck() override {
+			//doSendAck();
+		  isr_rto_enable();
 		}
 
 		void initHardware() override {
@@ -63,11 +73,11 @@ class Tuart_com7: public ThUart<USART1_BASE>, public Tuart {
 		}
 
 		void resetRxBusy() override {
-#ifdef __STM32G474xx_H
-			LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_0);
-#else
+#if defined(STM32C031xx)
 			LL_EXTI_ClearFallingFlag_0_31 (LL_EXTI_LINE_0);
 			LL_EXTI_ClearRisingFlag_0_31(LL_EXTI_LINE_0);
+#else
+			ARB_PIN::exti_clearFlag();
 #endif
 		}
 
@@ -91,21 +101,12 @@ class Tuart_com7: public ThUart<USART1_BASE>, public Tuart {
 		}
 
 		bool rxBusy() {
-#ifdef __STM32G474xx_H
-			return LL_EXTI_ReadFlag_0_31(LL_EXTI_LINE_0);
-#else
+#if defined(STM32C031xx)
 			return (LL_EXTI_ReadFallingFlag_0_31(LL_EXTI_LINE_0) > 0)
 				|| (LL_EXTI_ReadRisingFlag_0_31(LL_EXTI_LINE_0) > 0);
+#else
+			return (ARB_PIN::exti_readFlag() > 0);
 #endif
-			/*
-			if (LL_EXTI_IsActiveRisingFlag_0_31(LL_EXTI_LINE_0) != RESET){
-				return true;
-			}
-			if (LL_EXTI_IsActiveRisingFlag_0_31(LL_EXTI_LINE_0) != RESET){
-				return true;
-			}
-			return false;
-		*/
 		}
 
 		void handleErrors(uint32_t _errors) {
@@ -222,7 +223,11 @@ class Tuart_com7: public ThUart<USART1_BASE>, public Tuart {
 			/***************************************************/
 			// receiver timeout
 
-			else if ( isr_rto_flagSet() ) {
+			if ( isr_rto_enabled() && isr_rto_flagSet() ) {
+				isr_rto_clearFlag();
+				isr_rto_disable();
+				TP_GREEN::pulse();
+				doSendAck();
 				/*
 				if (FtxMsg){
 					if ((FnTries < 1) || (Fstatus & STAT_fACK_RECEIVED)){

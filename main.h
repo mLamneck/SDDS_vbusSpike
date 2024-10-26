@@ -2,6 +2,7 @@
 
 #include "uTypedef.h"
 #include "uVbusSpike.h"
+#include "debug/uVbusSpikeStimul.h"
 #include "uUart.h"
 
 TsimulUart simUart1("1uart");
@@ -15,7 +16,7 @@ class TLED{
 #if DEBUG_COMMON_APP == 1
 	#include "uApp.h"
 	TuserStruct userStruct;
-	TvbusSpike485 vsp(userStruct,&simUart1);
+	TvbusStimulSpike vsp(userStruct,&simUart1);
 
 #else
 

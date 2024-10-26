@@ -194,7 +194,7 @@ class Tuart : public Tthread{
 		}
 
 		void write(dtypes::uint8* _buf, int _size){
-			TP1::pulse();
+			//TP1::pulse();
 			if (FpTxMsg) return;
 
 			if (_buf[1] == 0xFF) FnTries = 1;
@@ -400,7 +400,7 @@ class Tuart : public Tthread{
 
 			//end of message
 			else{
-				TP3::high();
+				//TP3::high();
 				if ((_byte == ACK) && (FrxCurr == 0)){
 					FackReceived = 1;
 				}
@@ -433,7 +433,7 @@ class Tuart : public Tthread{
 				FendOfFrameReceived = true;
 				FendOfFrameEvPending = true;
 				FevEndOfFrame.signal();
-				TP3::low();
+				//TP3::low();
 			}
 		}
 
