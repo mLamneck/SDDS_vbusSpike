@@ -46,11 +46,17 @@ class Tdns{
 					break;
 				case '/' : t.next();
 				default:
-					_msg.setWritePos(_msg.writePos()-2*sizeof(t_path_entry));	//we need to first and nItems in answer
+					_msg.setWritePos(_msg.writePos()-2*sizeof(t_path_entry));
 			}
 
+			/**
+			 * at the moment it is not allowed to traverse into arrays
+			 * this will become necessary if we implement array of structs
+			 */
+			if (l.parent()->isArray()) return _msg.buildErrMsg(TvbusProtocoll::err_invalidPath,clientPort);
+
 			Tdescr* d = nullptr;
-			TmenuHandle* parent = l.menu();
+			TmenuHandle* parent = static_cast<Tstruct*>(l.parent())->value();
 			if (!firstItemFound){
 				do{
 					auto token = t.next();
@@ -79,10 +85,10 @@ class Tdns{
 				_msg.writePathEntry(idx-firstIdx+1);
 			}
 
-			//if not firstItemFound d must be assigned and rather be a struct or variable
+			//if not firstItemFound d must be assigned and rather be a struct, array or a regular variable
 			//sub
 			//sub/
-			else if (d->isStruct()){
+			else if (d->isStruct() || d->isArray()){
 				_msg.writePathEntry(0);
 				_msg.writePathEntry(dtypes::high<t_path_entry>());
 			}

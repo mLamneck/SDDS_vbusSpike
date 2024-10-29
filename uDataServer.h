@@ -18,8 +18,8 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 		typedef typename TprotStream::t_prot_type t_prot_type; 
 		typedef vbusSpike::TtypeST<TprotStream> TypeST; 		
 		typedef vbusSpike::Tconnection<TprotStream> Tconnection;
-		TypeST FtypeST;
 	public:
+		TypeST FtypeST;
 		void init(Tthread* _thread){
 			initEvent(FtypeST.Fevent,_thread);
 			setMsgRequest(&FtypeST.Fevent,true);
@@ -196,10 +196,23 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 			//reply with error if server is busy			
 			if (FtypeST.FtypeCurrItem) return  _msg.buildErrMsg(TvbusProtocoll::err_serverBusy,clientPort);
 
-			//reply with error for wrong path
+			//resolve path and reply with error in case of failure
 			TbinLocator l;
 			if (!l.locate(_msg,_root)) return _msg.buildErrMsg(TvbusProtocoll::err_invalidPath,clientPort);
-			startTypeThread(FtypeST,_msg.source(),clientPort,l);
+
+			//for arrays apply immediately because we have only 1 descr to transmit
+			if (l.parent()->isArray()){
+				_msg.setReturnHeader(clientPort);
+				_msg.writeMsgCnt(TvbusProtocoll::fLAST_MSG);
+				_msg.writePathEntry(0);
+				Tdescr* d = l.parent(); 
+				_msg.writeVal(d->typeId());
+				_msg.writeVal(d->option());
+				_msg.writeString(d->name());
+				_msg.setSendPending();
+			}
+			//for structs start typeThread
+			else startTypeThread(FtypeST,_msg.source(),clientPort,l);		
 		}
 
 		/**
@@ -214,13 +227,19 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 			TbinLocator l;
 			if (!l.locate(_msg,_root)) return _msg.buildErrMsg(TvbusProtocoll::err_invalidPath,_conn->clientPort());
 
-			/*
-			_conn->setupLink(owner(),l.menu(),_ps.port());
-			l.menu()->events()->push_first(&_conn->FobjEvent);
-			*/
-			_conn->setupLink(owner(),_msg.port(),l);
+			dtypes::uint8 linkTime = 0;
+			if (!_msg.readVal(linkTime)) return _msg.buildErrMsg(TvbusProtocoll::err_invalidLinkTime,_conn->clientPort());
+
+			/**
+			 * toDo:
+			 * implement linkTime
+			 */
+			if (linkTime != 1) return _msg.buildErrMsg(TvbusProtocoll::err_invalidLinkTime,_conn->clientPort());
+
+ 			_conn->setupLink(owner(),_msg.port(),l);
 			setMsgRequest(_conn->FobjEvent.event(),true);
 			_conn->FobjEvent.signal(l.firstItemIdx(),l.lastItemIdx());
+			_conn->FdataThread.resetBusy();
 		}
 
 		/**
@@ -235,7 +254,12 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 			TmsgCnt msgCnt = 0;
 			if (!_msg.readVal(msgCnt)) return;
 			if (!_msg.readVal(firstIdx)) return;
-			writeValuesToStruct(_msg,_conn->FobjEvent.Fstruct,firstIdx,_msg.port());
+			auto observedObj = _conn->FobjEvent.observedObj();
+			if (observedObj->isStruct())
+				writeValuesToStruct(_msg,static_cast<Tstruct*>(observedObj)->value(),firstIdx,_msg.port());
+			else{
+				arrayToDo();
+			}
 		}
 
 		/**
@@ -252,8 +276,18 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 			TbinLocator l;
 			if (!l.locate(_msg,_root)) return _msg.buildErrMsg(TvbusProtocoll::err_invalidPath,clientPort);
 			
-			//toDo: check for array
-			writeValuesToStruct(_msg,l.menu(),l.firstItemIdx());
+			if (l.parent()->isStruct())
+				writeValuesToStruct(_msg,l.menu1(),l.firstItemIdx());
+			else{
+				arrayToDo();
+				Tstring* d = static_cast<Tstring*>(l.parent());
+				TpathEntry arrayLen;
+				if (!_msg.readVal(arrayLen)) return;
+				if (arrayLen > 0 && _msg.bytesAvailableForRead() < 1) return;
+				auto str = _msg.readString();
+				//this doesn't work for long strings if we get multiple messages
+				d->setValue(str);
+			}
 			_msg.setReturnHeader(clientPort);
 			_msg.setSendPending();
 		}
@@ -306,6 +340,48 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 			return ThandleMessageRes::handled;
 		}
 
+		void dataThreadNextRun(TprotStream& _msg, Tconnection* _conn, TpathEntry _currIdx, TpathEntry _lastIdx, dtypes::uint8 _msgCnt){
+			if (_msgCnt == 0 && _conn->FdataThread.busy()) return;
+			_conn->FdataThread.FmsgCnt = _msgCnt+1;
+			_conn->FdataThread.FcurrIdx = _currIdx;
+			_conn->FdataThread.FlastIdx = _lastIdx;
+			setMsgRequest(&_conn->FdataThread.Fevent,true);
+			_conn->FdataThread.Fevent.setTimeEvent(10);
+			_msg.msgCnt(_msgCnt);
+			_msg.setSendPending();
+		}
+
+		/**
+		 * @brief write binary data to the given stream starting form currIdx to lastIdx until there's no
+		 * more space or the job is done
+		 * 
+		 * @param _msg 
+		 * @param _conn 
+		 * @param currIdx 
+		 * @param lastIdx 
+		 * @param _msgCnt 
+		 * @param _struct
+		 * @return true if all data is written
+		 * @return false if there's some data left and we have to run it again
+		 */
+		bool builLinkDataMsgStruct(TprotStream& _msg, Tconnection* _conn, TpathEntry currIdx, TpathEntry lastIdx, dtypes::uint8 _msgCnt, TmenuHandle* _struct){
+			auto mh = _struct;
+			auto curr = mh->get(currIdx);
+			if (!curr) return true;
+			
+			do{
+				if (!writeValueToStream(_msg,curr)){
+					dataThreadNextRun(_msg,_conn,currIdx,lastIdx,_msgCnt);
+					return false; //don't stop dataThread
+				}
+				if (currIdx++ >= lastIdx) break;
+				curr = curr->next();
+			} while(curr);
+
+			_msg.setSendPending();
+			return true;
+		}
+		
 		/**
 		 * @brief write binary data to the given stream starting form currIdx to lastIdx until there's no
 		 * more space or the job is done
@@ -318,32 +394,66 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 		 * @return true if all data is written
 		 * @return false if there's some data left and we have to run it again
 		 */
-		bool builLinkDataMsg(TprotStream& _msg, Tconnection* _conn, TpathEntry currIdx, TpathEntry lastIdx, dtypes::uint8 _msgCnt){
-			auto curr = _conn->FobjEvent.Fstruct->get(currIdx);
-			if (!curr) return true;
-			
+		bool builLinkDataMsg(TprotStream& _msg, Tconnection* _conn, TpathEntry _currIdx, TpathEntry _lastIdx, dtypes::uint8 _msgCnt){
 			_msg.setHeader(_conn->clientAddr(),_conn->clientPort(),TvbusProtocoll::ds_link);
-			_msg.writeMsgCnt(_msgCnt | TvbusProtocoll::fLAST_MSG);
-			_msg.writeVal(currIdx);
+			_msg.writeMsgCnt(_msgCnt | TvbusProtocoll::fLAST_MSG);				
+			_msg.writeVal(_currIdx);							//itemIdx (ofs in array buffer)				
 
-			do{
-				if (!writeValueToStream(_msg,curr)){
-					if (_msgCnt == 0 && _conn->FdataThread.busy())
-						return false;
-					_conn->FdataThread.FmsgCnt = _msgCnt+1;
-					_conn->FdataThread.FcurrIdx = currIdx;
-					_conn->FdataThread.FlastIdx = lastIdx;
-					setMsgRequest(&_conn->FdataThread.Fevent,true);
-					_conn->FdataThread.Fevent.setTimeEvent(10);
-					_msg.msgCnt(_msgCnt);
-					_msg.setSendPending();
-					return false;
-				}
-				if (currIdx++ >= lastIdx) break;
-				curr = curr->next();
-			} while(curr);
+			auto observedObj = _conn->FobjEvent.observedObj();
+			if (observedObj->isStruct()) {
+				return builLinkDataMsgStruct(_msg,_conn,_currIdx,_lastIdx,_msgCnt,static_cast<Tstruct*>(observedObj)->value());
+			}
+			else if (observedObj->type() == sdds::Ttype::STRING) {
+				Tstring* str = static_cast<Tstring*>(observedObj);			
 
-			_msg.setSendPending();
+				_msg.ctrl(TvbusProtocoll::ctrl_arrayFlag);
+				//special treatment for strings due to nullterminated strings in C we have to adjust things
+				auto strLen = str->length();
+				auto arrayLen = strLen;
+				auto arrayPtr = str->c_str();						//this is an invalid ptr but will be corrected by adding currIdx != 0
+				_msg.writePathEntry(arrayLen+1);					//arraySize (including length of str)
+				int bufElementIdx;
+				if (_currIdx == 0){
+					_msg.writeByte(strLen);							//this is the first byte of the array of char
+					if (strLen == 0){
+						_msg.setSendPending();
+						return true;
+					}
+					_currIdx=1;
+					bufElementIdx = 0;
+				} else bufElementIdx = _currIdx-1;
+
+				/**
+				 * from now on this code is valid for all array types
+				 * - arrayPtr points to the start of the array. 
+				 * - bufElementIdx is the idx of the next element to be transmitted in the array pointed to by arrayPtr
+				 * - currIdx is the idx of the element pointed to by arrayPtr in terms of protocoll (usually the same as bufElementIdx but not for strings)
+				 * - arrayLen is the number of elements available in the array
+				 */	
+
+				/**
+				 * this can only happen in the following scenario:
+				 * 		the size has beed decreased since last run of dataThread i.e. a dataThread has been started
+				 * 		for the string "012345678901234567890123456789" and we have transmitted the first bytes "01234567890123456789012".
+				 * 		After 10ms we come here again. In the meanwhile the string was set to "xyz". This has triggered a message with "xyz"
+				 * 		and we can just stop the thread here without sending a message.
+				 * 		toDo: what happens if the length has been decreased but we still have to send multiple messages?
+				 */
+				if (bufElementIdx >= arrayLen) return true;			//no message and kill dataThread
+				
+				auto valSize = observedObj->valSize();
+				auto nElmentsToTransmit = arrayLen-bufElementIdx;
+				arrayPtr += bufElementIdx * valSize;
+				int n = _msg.spaceAvailableForWrite()/valSize;		//how many elements can fit into buffer
+				if (nElmentsToTransmit > n){
+					dataThreadNextRun(_msg,_conn,_currIdx+n,_lastIdx,_msgCnt);
+					_msg.writeBytesNoCheck(arrayPtr,n*valSize);
+					return false;	//don't stop dataThread
+				} 
+				_msg.writeBytesNoCheck(arrayPtr,nElmentsToTransmit*valSize);
+				_msg.setSendPending();
+				return true;
+			}
 			return true;
 		}
 
@@ -379,5 +489,9 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 			}
 		}
 };
+
+#if MARKI_DEBUG_PLATFORM == 1
+	#include "test/uDataServer_test.h"
+#endif
 
 #endif

@@ -72,14 +72,22 @@ namespace vbusSpike{
 				FdataThread.Fevent.setOwner(_thread);
 				TcommThreadDefs::eventPort(&FdataThread.Fevent,_servPort);
 				FobjEvent.setObservedRange(l);
-				FobjEvent.Fstruct->events()->push_first(&FobjEvent);	
+				if (l.parent()->isStruct()){
+					//FobjEvent.Fstruct->events()->push_first(&FobjEvent);	
+					l.menu1()->events()->push_first(&FobjEvent);
+				}
+				else if (l.parent()->isArray()){
+					static_cast<Tstring*>(l.parent())->FobjectEvents.push_first(&FobjEvent);
+				}
 			}
 			
+			/*
 			void setupLink(Tthread* _thread, TmenuHandle* _struct, dtypes::uint16 _port){
 				FobjEvent.setOwner(_thread);
 				FobjEvent.event()->args.word1 = _port;
 				FobjEvent.Fstruct = _struct;
 			 }
+			 */
 			void setTxActivity(bool _val){ FtxActivity = _val; }
 			void setRxActivity(bool _val){ FrxActivity = _val; }
 			bool hasTxActivity(){ return FtxActivity; }

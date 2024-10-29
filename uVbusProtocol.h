@@ -8,6 +8,10 @@ class TvbusProtocoll{
 		/**  */
 		static constexpr dtypes::uint8 fLAST_MSG = 0x80;
 
+		/** fields in ctrl byte */
+		static constexpr dtypes::uint8 ctrl_addrSizeMask = 0x03;
+		static constexpr dtypes::uint8 ctrl_arrayFlag = 0x20;
+
 		/** func */
 		
 		static constexpr auto request = 0x01;
@@ -43,11 +47,13 @@ class TvbusProtocoll{
 
 		/** error codes */
 
-		static constexpr auto err_serverBusy 	= 0xFF;
-		static constexpr auto err_invalidPort 	= 0xFE;
-		static constexpr auto err_invalidPath 	= 0xFD;
+		static constexpr auto err_serverBusy 		= 0xFF;
+		static constexpr auto err_invalidPort 		= 0xFE;
+		static constexpr auto err_invalidPath 		= 0xFD;
 
-		static constexpr auto err_noMorePorts 	= 0xEB;
+		static constexpr auto err_invalidLinkTime	= 0xF0;
+
+		static constexpr auto err_noMorePorts 		= 0xEB;
 
 
 /*
@@ -279,7 +285,8 @@ class TvbusProtStream : public TbufferStream{
 			FbytesAvailableForRead = _size;
 		}
 
-		constexpr void ctrl(const t_prot_ctrl _val) { writeValToOfs<OFS_CTRL>(_val); }
+		//constexpr void ctrl(const t_prot_ctrl _val) { writeValToOfs<OFS_CTRL>(_val); }
+		constexpr void ctrl(const t_prot_ctrl _val) { writeValToOfs<OFS_CTRL>(_val | (sizeof(t_prot_addr)-1) ); }
 		constexpr t_prot_ctrl ctrl() { return readValFromOfs<t_prot_ctrl, OFS_CTRL>(); }
 
 		constexpr void destiny(const t_prot_addr _val) { writeValToOfs<OFS_DEST>(_val); }
@@ -340,7 +347,7 @@ class TvbusProtStream : public TbufferStream{
 		}
 
 		constexpr void setHeader(const t_prot_addr _destiny, const t_prot_addr _source, const t_prot_port _port, const t_prot_func _func){
-			ctrl(sizeof(t_prot_addr)-1);
+			ctrl(0);
 			destiny(_destiny);
 			source(_source);
 			port(_port);
@@ -348,7 +355,7 @@ class TvbusProtStream : public TbufferStream{
 		}
 
 		constexpr void setHeader(const t_prot_addr _destiny, const t_prot_port _port, const t_prot_func _func){
-			ctrl(sizeof(t_prot_addr)-1);
+			ctrl(0);
 			destiny(_destiny);
 			port(_port);
 			func(_func);
@@ -364,6 +371,11 @@ class TvbusProtStream : public TbufferStream{
 		constexpr TbufferPos length() { return FwritePos; }
 };
 
+/**
+ * toDo:
+ * make msgSize dependend on Tuart somehow. Now it's independend and we get a problem
+ * If we change the buffer size in Tuart to a lower number compared to the 32 here.
+ */
 typedef TvbusProtStream<
 	dtypes::uint8, 
 	dtypes::uint8,

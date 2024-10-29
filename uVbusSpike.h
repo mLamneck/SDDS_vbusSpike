@@ -19,7 +19,8 @@ class TvbusSpikeBase : public Tthread{
 		typedef TdataServer<TprotStream> DataServer;
 
 		typedef TcommThreadDefs::ThandleMessageRes ThandleMessageRes; 
-		typedef typename _Tstream::TmessageBufferTX TtxBuffer;
+		//typedef typename _Tstream::TmessageBufferTX TtxBuffer;
+		typedef _Tstream Tstream;
 		typedef typename TprotStream::t_prot_cs t_prot_cs; 
 		typedef typename TprotStream::t_prot_port Tport;
 		constexpr static int nCOMM_THREADS = 1;
@@ -91,7 +92,7 @@ class TvbusSpikeBase : public Tthread{
 				if (Fconnections.handleMessage(Fps,conn) == ThandleMessageRes::handled) return;
 			};
 		}
-		
+
 		virtual bool readMessage(Tuart::TmessageBufferRX* _msg){
 			Fps.init(&_msg->data[0],_msg->length);
 			handleMessage();			
@@ -206,6 +207,7 @@ class TvbusSpikeBase : public Tthread{
 				auto ev = FtaskQ.pop();
 				if (ev){
 					handleEvent(ev);
+					ev->afterDispatch();
 					//handleCommthreadEvent(static_cast<TcommEvent*>(ev));
 				}
 				else{
@@ -253,4 +255,3 @@ class TvbusSpike485 : public TvbusSpikeBase<Tvbus485ProtStream,Tuart>{
 		void exec_applyToNet(Tevent* _ev) override {
 		}
 };
-

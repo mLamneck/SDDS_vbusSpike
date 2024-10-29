@@ -128,7 +128,7 @@ class TtestDns : public TtestCase{
 		*/
 		doTest([this](){
             int rootPath[] = {2,0,max_elements};
-            int expResolvedPath[] = {3,1,8,1};
+            int expResolvedPath[] = {4,1,8,0,255};
 			return testRequest(&rootPath[0],"allTypes/Fstr",&expResolvedPath[0]);
         },"root -> allTypes/Fstr");
 
