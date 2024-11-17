@@ -1,11 +1,12 @@
 # vbusSpike
 
-`vbusSpike` is an extension of the [SDDS Library (Self-Describing Data Structures)](https://github.com/SDDS/sdds) that adds support for distributing data structures using a binary protocol over an RS-485 interface. This library enables efficient communication and distribution of self-describing data structures in distributed systems and embedded applications.
+`vbusSpike` is an extension of the [SDDS Library (Self-Describing Data Structures)](https://github.com/SDDS/sdds) that adds support for distributing data structures using a binary protocol. This library enables efficient communication and distribution of self-describing data structures in distributed systems and embedded applications.
+
+Please note that this README is a work in progress. It currently provides basic definitions of the protocol, but a more detailed documentation will be added in the future.
 
 ## Features
 
 - **Extension of SDDS:** Builds on top of the Self-Describing Data Structures (SDDS) Library for efficient data structure management.
-- **RS-485 Interface Support:** Implements a binary protocol for data transmission over an RS-485 interface.
 - **Efficient Data Transfer:** Ensures low-latency and reliable data transfer for distributed systems.
 - **Cross-Platform Compatibility:** Designed to work across different platforms and environments.
 
@@ -81,7 +82,6 @@ Possible Errors:
 
 #### Dns
 
-##### Dns Request
 |				| Ctrl		| Destiny 	| Source    | Port 	| Func 	| Data								|
 |-				| -			|- 		  	| -			| -		| -		| :- 								|
 |<b>Req 		| AddrSize	| sAddr 	| cAddr		| 0		| 0x19	| cPort \| path 	\| textPath  	|
@@ -94,7 +94,7 @@ Possible Errors:
 
 #### Type Request
 
-Used to retrieve type information for a given binary path. There will be one message for each variable with the exception of enums. Enums can be distributed in multiple messages depending on their length. There is a delay of 10ms between each message. 
+This is used to retrieve type information for a given binary path. A separate message will be sent for each variable, with the exception of enums. Enums may be split across multiple messages depending on their length. There is a 10ms delay between each message.
 
 |				| Ctrl		| Destiny 	| Source    | Port 	| Func 	| Data								|
 |-				| -			|- 		  	| -			| -		| -		| :- 								|
