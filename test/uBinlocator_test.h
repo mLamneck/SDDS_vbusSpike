@@ -1,8 +1,8 @@
 #include "uTestCase.h"
 #include "uParamSave.h"
-#include "../uVbusProtocol.h"
-#include "../uDns.h"
-#include "../uUartBase.h"
+#include "../src/uVbusProtocol.h"
+#include "../src/uDns.h"
+#include "../src/uUartBase.h"
 #include "uTypedef.h"
 
 class TbinLocatorTest : public TtestCase{

@@ -117,7 +117,7 @@ namespace com7{
 }
 
 #if MARKI_DEBUG_PLATFORM == 1
-#include "test/uCom7_test.h"
+#include "../test/uCom7_test.h"
 #endif
 
 #endif

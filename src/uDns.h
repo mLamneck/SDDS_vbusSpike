@@ -121,7 +121,7 @@ class Tdns{
 };
 
 #if MARKI_DEBUG_PLATFORM == 1
-#include "test/uDns_test.h"
+#include "../test/uDns_test.h"
 #endif
 
 #endif

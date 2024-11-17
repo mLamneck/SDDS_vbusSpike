@@ -1,4 +1,4 @@
-#include "../uCom7.h"
+#include "../src/uCom7.h"
 #include "uTestCase.h"
 
 class Tcom7Test : public TtestCase{

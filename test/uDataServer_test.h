@@ -1,8 +1,8 @@
 #include "uTestCase.h"
 #include "uParamSave.h"
-#include "../uVbusProtocol.h"
-#include "../uDataServer.h"
-#include "../uUartBase.h"
+#include "../src/uVbusProtocol.h"
+#include "../src/uDataServer.h"
+#include "../src/uUartBase.h"
 
 class TtestDataServer : public TtestCase{
     using TtestCase::TtestCase;
