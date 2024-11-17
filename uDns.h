@@ -14,6 +14,7 @@ class Tdns{
 		typedef typename TprotStream::t_prot_addr Taddr;
 		typedef typename TprotStream::t_path_entry t_path_entry; 
 		typedef typename TprotStream::t_path_length t_path_length; 
+		typedef typename TprotStream::BinLocator TbinLocator;
 	public:
 		void handleDnsReq(TprotStream& _msg,  TmenuHandle* _root){
 			Tport clientPort = 0;
@@ -22,8 +23,9 @@ class Tdns{
 
 			//scan tree with bin path
 			auto pos = _msg.readPos();
-			TbinLocator<t_path_length, t_path_entry> l;
-			if (!l.locate(_msg,_root)) return _msg.buildErrMsg(TvbusProtocoll::err_invalidPath,clientPort);
+			TbinLocator l;
+			if (l.locate(_msg,_root) == TbinLocator::Tresult::isInvalid)
+				return _msg.buildErrMsg(TvbusProtocoll::err_invalidPath,clientPort);
 			
 			//move bin path to correct postion in output
 			_msg.setReadPos(pos);
@@ -53,10 +55,10 @@ class Tdns{
 			 * at the moment it is not allowed to traverse into arrays
 			 * this will become necessary if we implement array of structs
 			 */
-			if (l.parent()->isArray()) return _msg.buildErrMsg(TvbusProtocoll::err_invalidPath,clientPort);
+			if (l.result()->isArray()) return _msg.buildErrMsg(TvbusProtocoll::err_invalidPath,clientPort);
 
 			Tdescr* d = nullptr;
-			TmenuHandle* parent = static_cast<Tstruct*>(l.parent())->value();
+			TmenuHandle* parent = static_cast<Tstruct*>(l.result())->value();
 			if (!firstItemFound){
 				do{
 					auto token = t.next();

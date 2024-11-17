@@ -58,8 +58,11 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 				_msg.writeByte(0);
 			}
 
-			int enBufferSize = en->enumBufferSize()-1;	//don't count \0 of last string for size
-			const char* pEnumBuf = en->enumBuffer();
+			//int enBufferSize = en->enumBufferSize()-1;	//don't count \0 of last string for size
+			//const char* pEnumBuf = en->enumBuffer();
+			auto enumInfo = en->enumInfo();
+			int enBufferSize = enumInfo.bufferSize-1;	//don't count \0 of last string for size
+			const char* pEnumBuf = enumInfo.buffer;
 			_msg.writeByte(0);		//typExt (future reserved)
 			_msg.writeByte(enBufferSize);
 			_msg.writeByte(_typeST.FtypeEnumIdx);
@@ -156,6 +159,7 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 		bool writeValueToStruct(TprotStream& _msg, Tdescr* _val){
 			auto typeId = _val->typeId();
 
+			/** skip struct and arrays */
 			if (typeId >= sdds::typeIds::first_compose_type)
 				return _msg.readOfs(2);
 
@@ -196,23 +200,29 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 			//reply with error if server is busy			
 			if (FtypeST.FtypeCurrItem) return  _msg.buildErrMsg(TvbusProtocoll::err_serverBusy,clientPort);
 
-			//resolve path and reply with error in case of failure
 			TbinLocator l;
-			if (!l.locate(_msg,_root)) return _msg.buildErrMsg(TvbusProtocoll::err_invalidPath,clientPort);
-
-			//for arrays apply immediately because we have only 1 descr to transmit
-			if (l.parent()->isArray()){
-				_msg.setReturnHeader(clientPort);
-				_msg.writeMsgCnt(TvbusProtocoll::fLAST_MSG);
-				_msg.writePathEntry(0);
-				Tdescr* d = l.parent(); 
-				_msg.writeVal(d->typeId());
-				_msg.writeVal(d->option());
-				_msg.writeString(d->name());
-				_msg.setSendPending();
+			switch (l.locate(_msg,_root))
+			{
+				case TbinLocator::Tresult::isStruct:
+					startTypeThread(FtypeST,_msg.source(),clientPort,l);
+					break;
+				
+				case TbinLocator::Tresult::isArray: {
+					_msg.setReturnHeader(clientPort);
+					_msg.writeMsgCnt(TvbusProtocoll::fLAST_MSG);
+					_msg.writePathEntry(0);
+					Tdescr* d = l.result(); 
+					_msg.writeVal(d->typeId());
+					_msg.writeVal(d->option());
+					_msg.writeString(d->name());
+					_msg.setSendPending();
+					break;
+				}
+				
+				//reply with error in case of failure
+				default:
+					_msg.buildErrMsg(TvbusProtocoll::err_invalidPath,clientPort);
 			}
-			//for structs start typeThread
-			else startTypeThread(FtypeST,_msg.source(),clientPort,l);		
 		}
 
 		/**
@@ -225,7 +235,8 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 		void handleLinkRequest(TprotStream& _msg,  TmenuHandle* _root, Tconnection* _conn){
 			//reply with error for wrong path
 			TbinLocator l;
-			if (!l.locate(_msg,_root)) return _msg.buildErrMsg(TvbusProtocoll::err_invalidPath,_conn->clientPort());
+			if (l.locate(_msg,_root) == TbinLocator::Tresult::isInvalid) 
+				return _msg.buildErrMsg(TvbusProtocoll::err_invalidPath,_conn->clientPort());
 
 			dtypes::uint8 linkTime = 0;
 			if (!_msg.readVal(linkTime)) return _msg.buildErrMsg(TvbusProtocoll::err_invalidLinkTime,_conn->clientPort());
@@ -274,20 +285,39 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 
 			//reply with error for wrong path
 			TbinLocator l;
-			if (!l.locate(_msg,_root)) return _msg.buildErrMsg(TvbusProtocoll::err_invalidPath,clientPort);
-			
-			if (l.parent()->isStruct())
-				writeValuesToStruct(_msg,l.menu1(),l.firstItemIdx());
-			else{
-				arrayToDo();
-				Tstring* d = static_cast<Tstring*>(l.parent());
-				TpathEntry arrayLen;
-				if (!_msg.readVal(arrayLen)) return;
-				if (arrayLen > 0 && _msg.bytesAvailableForRead() < 1) return;
-				auto str = _msg.readString();
-				//this doesn't work for long strings if we get multiple messages
-				d->setValue(str);
+			switch (l.locate(_msg,_root)){
+				case TbinLocator::Tresult::isStruct:
+					writeValuesToStruct(_msg,l.menuHandle(),l.firstItemIdx());
+					break;
+				
+				case TbinLocator::Tresult::isArray:{
+					arrayToDo();
+					/**
+					 * arrayToDo:
+					 * 
+					 * at the moment we only partially handle strings. We have to implement
+					 * generic array interface first in uTypedef.h in order to do it right.
+					 */
+					Tstring* d = static_cast<Tstring*>(l.result());
+					if (d->readonly()) return;
+					TpathEntry arrayLen;
+					if (!_msg.readVal(arrayLen)) return;
+					if (arrayLen > 0 && _msg.bytesAvailableForRead() < 1) return;
+					if (1==1){
+						//this doesn't work for long strings if we get multiple messages
+						auto str = _msg.readString();
+						d->setValue(str);
+					} else{
+						//this is not tested
+						d->setValue(l.firstItemIdx(),_msg);
+					}
+					break;
+				}
+				
+				default:
+					return _msg.buildErrMsg(TvbusProtocoll::err_invalidPath,clientPort);
 			}
+
 			_msg.setReturnHeader(clientPort);
 			_msg.setSendPending();
 		}

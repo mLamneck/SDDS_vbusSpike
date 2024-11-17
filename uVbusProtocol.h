@@ -372,8 +372,7 @@ class TvbusProtStream : public TbufferStream{
 };
 
 /**
- * toDo:
- * make msgSize dependend on Tuart somehow. Now it's independend and we get a problem
+ * toDo: make msgSize dependend on Tuart somehow. Now it's independend and we get a problem
  * If we change the buffer size in Tuart to a lower number compared to the 32 here.
  */
 typedef TvbusProtStream<

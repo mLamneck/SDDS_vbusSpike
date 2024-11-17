@@ -2,14 +2,14 @@
 #include "uParamSave.h"
 #include "../uVbusProtocol.h"
 #include "../uDataServer.h"
-#include "../uUart.h"
+#include "../uUartBase.h"
 
 class TtestDataServer : public TtestCase{
     using TtestCase::TtestCase;
 
 	//to be given as template parameters later
 	typedef Tvbus485ProtStream TprotStream;
-	typedef Tuart _Tstream;
+	typedef TuartBase _Tstream;
 	typedef TdataServer<TprotStream> TdataSever;
 	typedef TprotStream::t_prot_msgCnt TmsgCnt;
 	typedef TprotStream::t_path_length TpathLength;

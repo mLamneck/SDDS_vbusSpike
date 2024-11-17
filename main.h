@@ -3,32 +3,34 @@
 #include "uTypedef.h"
 #include "uVbusSpike.h"
 #include "debug/uVbusSpikeStimul.h"
-#include "uUart.h"
+#include "uUartBase.h"
 
 TsimulUart simUart1("1uart");
 TsimulUart simUart2("2uart");
 
 class TLED{
 	public:
-		static void toggle(){ }
+		static void toggle(){ 
+		}
 };
 
 #if DEBUG_COMMON_APP == 1
 	#include "uApp.h"
 	TuserStruct userStruct;
 	TvbusStimulSpike vsp(userStruct,&simUart1);
-
 #else
 
 class TsubMenu : public TmenuHandle{
 	Ttimer timer;
 	public:
 		sdds_struct(
+			sdds_var(Tstring,str1,0,"gjgkj")
 			sdds_var(Tuint8,val1)
 			sdds_var(Tuint8,val2)
 		)
 		public:
 			TsubMenu(){
+				str1 = "Hallo";
 			
 			}
 };
@@ -58,20 +60,7 @@ class TuserStruct : public TmenuHandle{
 
 				timer.start(1000);
 				on(timer){
-					switch(status){
-						case 0 :
-							val1++;
-							status=1;
-							break; 
-						case 1 : 
-							val2++;
-							val3++;
-							status=0;
-							break; 
-						case 2 : 
-							break;
-						
-					}
+					val1++;
 					timer.start(1000);
 				};
 
@@ -86,7 +75,7 @@ class TuserStruct : public TmenuHandle{
 } userStruct;
 
 
-TvbusSpike485 vsp(userStruct,&simUart1);
+//TvbusSpike485 vsp(userStruct,&simUart1);
 //TvbusSpike485 vsp1(userStruct,&simUart2);
 
 #endif

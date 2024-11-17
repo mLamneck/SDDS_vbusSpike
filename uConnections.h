@@ -59,10 +59,17 @@ namespace vbusSpike{
 			Tport clientPort() { return FclientPort; }
 			void shutdown(){
 				FclientPort = 0;
-				FobjEvent.cleanup();
-				FobjEvent.setOwner(nullptr);
 				FdataThread.Fevent.reclaim();
 				FdataThread.Fevent.setOwner(nullptr);
+				FobjEvent.setOwner(nullptr);
+				Tdescr* observedObj = FobjEvent.observedObj();
+				if (observedObj){
+					if (observedObj->isStruct()) 
+						static_cast<Tstruct*>(observedObj)->value()->events()->remove(&FobjEvent);
+					else
+						static_cast<TarrayBase*>(observedObj)->events()->remove(&FobjEvent);
+				}
+				FobjEvent.cleanup();
 			}
 
 			template <class _Tlocator>
@@ -72,12 +79,11 @@ namespace vbusSpike{
 				FdataThread.Fevent.setOwner(_thread);
 				TcommThreadDefs::eventPort(&FdataThread.Fevent,_servPort);
 				FobjEvent.setObservedRange(l);
-				if (l.parent()->isStruct()){
-					//FobjEvent.Fstruct->events()->push_first(&FobjEvent);	
-					l.menu1()->events()->push_first(&FobjEvent);
+				if (l.result()->isStruct()){
+					l.menuHandle()->events()->push_first(&FobjEvent);
 				}
-				else if (l.parent()->isArray()){
-					static_cast<Tstring*>(l.parent())->FobjectEvents.push_first(&FobjEvent);
+				else if (l.result()->isArray()){
+					static_cast<TarrayBase*>(l.result())->events()->push_first(&FobjEvent);
 				}
 			}
 			

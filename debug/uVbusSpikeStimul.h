@@ -6,7 +6,7 @@ class TvbusStimulSpike : public TvbusSpike485{
 			auto pEnd = _in + strlen(_in);
 			auto pOutStart = _out;
 			while (_in < pEnd) {
-				_in += 2;
+				//_in += 2;
 				dtypes::string byteString(_in,_in+2);
 				uint8_t b = static_cast<uint8_t>(
 					stoi(byteString, nullptr, 16));
@@ -22,7 +22,7 @@ class TvbusStimulSpike : public TvbusSpike485{
 
 		Tevent FevStimul;
 
-		TvbusStimulSpike(TmenuHandle& _root, Tuart* _stream) 
+		TvbusStimulSpike(TmenuHandle& _root, TuartBase* _stream) 
 			: TvbusSpike485(_root,_stream)
 		{
 				FevStimul.setOwner(this);
@@ -44,14 +44,14 @@ class TvbusStimulSpike : public TvbusSpike485{
 			readMessage(&FtxBuffer);
 		}
 
-		void stimul(){
+		void stimul(){				
 				//static typename Tuart::TmessageBufferTX FtxBuffer;
 				//static TtxBuffer FtxBuffer;
 				static int stimul_status = 0;
 				static const TprotStream::t_prot_addr servAddr = 0x06;
 				static const TprotStream::t_prot_addr clientAddr = 0x05;
 
-				dtypes::uint32 uint32Val = 0;
+				dtypes::uint32 uint32Val = 1;
 				switch(stimul_status){
 					case 0:
 						if (1==2){
@@ -125,6 +125,7 @@ class TvbusStimulSpike : public TvbusSpike485{
 						Fps.init(&FtxBuffer.data[0],Fps.length());
 						handleMessage();
 						
+						/*
 						Fps.init(&FtxBuffer.data[0]);
 						Fps.setHeader(servAddr,clientAddr,0,TvbusProtocoll::ds_type_req);
 						Fps.writeByte(13);	//client port
@@ -135,6 +136,7 @@ class TvbusStimulSpike : public TvbusSpike485{
 						//Fps.init(&FtxBuffer.data[0],Fps.length());
 						FtxBuffer.length = Fps.length();
 						readMessage(&FtxBuffer);
+						*/
 						stimul_status = 2;
 						FevStimul.setTimeEvent(100);
 						return;
@@ -157,12 +159,16 @@ class TvbusStimulSpike : public TvbusSpike485{
 						Fps.init(&FtxBuffer.data[0]);
 						Fps.setHeader(servAddr,clientAddr,0x10,TvbusProtocoll::ds_link_req);
 						Fps.writeByte(3);
-						Fps.writeByte(3);
+						Fps.writeByte(6);
 						Fps.writeByte(0);
 						Fps.writeByte(255);
 						Fps.writeByte(1);//link time
 						FtxBuffer.length = Fps.length();
 						readMessage(&FtxBuffer);
+
+						stimul_status = 3;
+						FevStimul.setTimeEvent(100);
+						return;
 
 						Fps.init(&FtxBuffer.data[0]);
 						Fps.setHeader(servAddr,clientAddr,0x11,TvbusProtocoll::ds_link_req);
@@ -177,6 +183,10 @@ class TvbusStimulSpike : public TvbusSpike485{
 						stimul_status = 2;
 						break;
 
+					case 3:
+						FtxBuffer.length = parseStr(&FtxBuffer.data[0],"00 01 02 00 25 02 03 06 01 01 64 00");
+						readMessage(&FtxBuffer);	
+						return;
 
 					//FPDW
 					case 20:

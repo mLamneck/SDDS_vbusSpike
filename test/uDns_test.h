@@ -2,14 +2,14 @@
 #include "uParamSave.h"
 #include "../uVbusProtocol.h"
 #include "../uDns.h"
-#include "../uUart.h"
+#include "../uUartBase.h"
 
 class TtestDns : public TtestCase{
     using TtestCase::TtestCase;
 
 	//to be given as template parameters later
 	typedef Tvbus485ProtStream TprotStream;
-	typedef Tuart _Tstream;
+	typedef TuartBase _Tstream;
 	typedef Tdns<TprotStream> Dns;
 
 	TprotStream Fps;

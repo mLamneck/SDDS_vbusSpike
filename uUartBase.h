@@ -25,7 +25,7 @@ class _TCom7messageBufferRX : public TlinkedListElement{
 		dtypes::uint8 data[_plainSize + 1+(_plainSize/7+1)];
 };
 
-class Tuart;
+class TuartBase;
 
 /*
  * c7start:
@@ -35,7 +35,7 @@ class Tuart;
  */
 template <int _plainSize>
 struct _TCom7messageBufferTX{
-		friend class Tuart;
+		friend class TuartBase;
 	private:
 		constexpr static int cBUF_COM7FILL = 1+(_plainSize/7+1);
 		constexpr static int c7SIZE = _plainSize + cBUF_COM7FILL;
@@ -47,7 +47,7 @@ struct _TCom7messageBufferTX{
 };
 
 
-class Tuart : public Tthread{
+class TuartBase : public Tthread{
 	public:
 		typedef dtypes::uint8 Tbyte;
 #if (MARKI_DEBUG_PLATFORM==1)
@@ -122,7 +122,7 @@ class Tuart : public Tthread{
 		Tevent* FevTxIdleNotify = nullptr;
 
 	public:
-		Tuart()
+		TuartBase()
 		: FevEndOfFrame(this)
 		, FevTxIdle(this)
 		{
@@ -178,9 +178,6 @@ class Tuart : public Tthread{
 		};
 
 		void handleErrMsgSmall(){
-			TP2::pulse();
-			TP2::pulse();
-			TP2::pulse();
 			Ferrors.msgTooSmall++;
 		}
 
@@ -237,7 +234,7 @@ class Tuart : public Tthread{
 			FpTxMsg = nullptr;
 			if (FevTxIdleNotify){
 				#if MARKI_DEBUG_PLATFORM == 0
-					FevTxIdleNotify->signal();	//isr not needed at the moment but it doesn't hurt
+					FevTxIdleNotify->signal();
 				#else
 					FevTxIdleNotify->setTimeEvent(2);
 				#endif
@@ -454,11 +451,11 @@ class Tuart : public Tthread{
 };
 
 #if MARKI_DEBUG_PLATFORM == 1
-class TsimulUart : public Tuart{
+class TsimulUart : public TuartBase{
 	public:
-		Tuart* FlinkedUart;
+		TuartBase* FlinkedUart;
 
-		TsimulUart(const char* _name) : Tuart() {
+		TsimulUart(const char* _name) : TuartBase() {
 			name = _name;
 		}
 

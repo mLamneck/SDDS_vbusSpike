@@ -2,7 +2,7 @@
 #include "uParamSave.h"
 #include "../uVbusProtocol.h"
 #include "../uDns.h"
-#include "../uUart.h"
+#include "../uUartBase.h"
 #include "uTypedef.h"
 
 class TbinLocatorTest : public TtestCase{
@@ -10,15 +10,16 @@ class TbinLocatorTest : public TtestCase{
 
 	//to be given as template parameters later
 	typedef Tvbus485ProtStream TprotStream;
-	typedef Tuart _Tstream;
+	typedef TuartBase _Tstream;
 	typedef Tdns<TprotStream> Dns;
 
 	TprotStream Fps;
 	typename _Tstream::TmessageBufferRX FtxBuffer;
+	typedef TbinLocator<TprotStream::t_path_length,TprotStream::t_path_entry> TbinLocator;
 	unitTest::TtestData FtestData;
 
-	bool testPath(int* _reqPath, bool _expRes, Tdescr* _expParent, Tdescr* _expFirst, Tdescr* _expLast){
-		TbinLocator<TprotStream::t_path_length,TprotStream::t_path_entry> l;
+	bool testPath(int* _reqPath, TbinLocator::Tresult _expRes, Tdescr* _expParent, Tdescr* _expFirst, Tdescr* _expLast){
+		TbinLocator l;
 		Fps.init(&FtxBuffer.data[0]);
 		TprotStream::t_path_length len = *_reqPath;
 		Fps.writeVal(len);
@@ -26,20 +27,20 @@ class TbinLocatorTest : public TtestCase{
 			Fps.writePathEntry(_reqPath[i+1]);
 		}
 		Fps.init(&FtxBuffer.data[0],Fps.length());
-		auto res = l.locate(Fps,FtestData);
-		if (res != _expRes){
-			debug::log("expected result = %d != %d",_expRes,res);
+		auto locateResult = l.locate(Fps,FtestData);
+		if (locateResult != _expRes){
+			debug::log("expected result = %d != %d",_expRes,locateResult);
 			return false;
 		}
 
-		if (!res) return true;
+		if (locateResult == TbinLocator::Tresult::isInvalid) return true;
 		
-		if (l.parent() != _expParent){
+		if (l.result() != _expParent){
 			debug::log("parent is not the expected '%s'",_expParent->name());
 			return false;
 		}
 
-		res = true;
+		bool res = true;
 		if (l.firstItem() != _expFirst){
 			debug::log("firstItem = '%s' != '%s' = expected firstItem",l.firstItem()->name(),_expFirst->name());
 			res = false;
@@ -87,23 +88,23 @@ class TbinLocatorTest : public TtestCase{
         
 		doTest([this](){
             int reqPath[] = {2,0,max_elements};
-			return testPath(&reqPath[0],true,FtestData,FtestData.get(0),FtestData.last());
+			return testPath(&reqPath[0],TbinLocator::Tresult::isStruct,FtestData,FtestData.get(0),FtestData.last());
         },"2,0,255");
 
 		doTest([this](){
             int reqPath[] = {3,1,0,max_elements};
-			return testPath(&reqPath[0],true,FtestData.allTypes,FtestData.allTypes.get(0),FtestData.allTypes.last());
+			return testPath(&reqPath[0],TbinLocator::Tresult::isStruct,FtestData.allTypes,FtestData.allTypes.get(0),FtestData.allTypes.last());
         },"3,1,0,255");
 
 		doTest([this](){
             int reqPath[] = {3,1,1,2};
-			return testPath(&reqPath[0],true,&FtestData.allTypes,FtestData.allTypes.get(1),FtestData.allTypes.get(1+2-1));
+			return testPath(&reqPath[0],TbinLocator::Tresult::isStruct,&FtestData.allTypes,FtestData.allTypes.get(1),FtestData.allTypes.get(1+2-1));
         },"3,1,1,2");
 
 		doTest([this](){
             int reqPath[] = {4,1,8,0,255};
 			auto strDescr = FtestData.allTypes.get(8);
-			return testPath(&reqPath[0],true,&FtestData.allTypes.Fstr,strDescr,strDescr);
+			return testPath(&reqPath[0],TbinLocator::Tresult::isArray,&FtestData.allTypes.Fstr,strDescr,strDescr);
         },"enter string 4,1,8,0,255");
 
         return false;

@@ -1,6 +1,9 @@
+#ifndef UVBUSSPIKE_H
+#define UVBUSSPIKE_H
+
 #include "uTypedef.h"
 #include "uMultask.h"
-#include "uUart.h"
+#include "uUartBase.h"
 #include "uVbusProtocol.h"
 #include "uCommThread.h"
 #include "uDhcp.h"
@@ -24,6 +27,13 @@ class TvbusSpikeBase : public Tthread{
 		typedef typename TprotStream::t_prot_cs t_prot_cs; 
 		typedef typename TprotStream::t_prot_port Tport;
 		constexpr static int nCOMM_THREADS = 1;
+
+		/**
+		 * @brief declare some variables to add a network menu to the struct
+		 * 
+		 */
+		sdds_var(TmenuHandle,NETWORK)
+		sdds_var(Tstruct,DHCP)
 
 	protected:
 		//handshake events with _Tstream
@@ -61,6 +71,17 @@ class TvbusSpikeBase : public Tthread{
 				Fdhcp.init(this);
 				Fconnections.init(this);
 				FdataServer.init(this);
+
+				/**
+				 * @brief make network public
+				 * 
+				 */
+				auto s = _root.find("SYSTEM");
+				if (s && s->isStruct()){
+					DHCP.__setValue(&Fdhcp);
+					NETWORK.addDescr(&DHCP);
+					static_cast<Tstruct*>(s)->value()->addDescr(&NETWORK,1);
+				}
 			}
 
 	protected:
@@ -93,7 +114,7 @@ class TvbusSpikeBase : public Tthread{
 			};
 		}
 
-		virtual bool readMessage(Tuart::TmessageBufferRX* _msg){
+		virtual bool readMessage(TuartBase::TmessageBufferRX* _msg){
 			Fps.init(&_msg->data[0],_msg->length);
 			handleMessage();			
 			if (Fps.sendPending()){
@@ -232,12 +253,12 @@ class TvbusSpikeBase : public Tthread{
 		}
 };
 
-class TvbusSpike485 : public TvbusSpikeBase<Tvbus485ProtStream,Tuart>{
+class TvbusSpike485 : public TvbusSpikeBase<Tvbus485ProtStream,TuartBase>{
 	using TvbusSpikeBase::TvbusSpikeBase;
 
 	public:
-		TvbusSpike485(TmenuHandle& _root, Tuart* _stream) 
-			: TvbusSpikeBase<Tvbus485ProtStream,Tuart>(_root,_stream)
+		TvbusSpike485(TmenuHandle& _root, TuartBase* _stream) 
+			: TvbusSpikeBase<Tvbus485ProtStream,TuartBase>(_root,_stream)
 		{
 		}
 
@@ -255,3 +276,5 @@ class TvbusSpike485 : public TvbusSpikeBase<Tvbus485ProtStream,Tuart>{
 		void exec_applyToNet(Tevent* _ev) override {
 		}
 };
+
+#endif
