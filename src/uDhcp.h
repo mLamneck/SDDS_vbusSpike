@@ -5,6 +5,7 @@
 #include "uCommThread.h"
 #include "uStrings.h"
 #include "uRandom.h"
+#include "uTypedef.h"
 
 #if MARKI_DEBUG_PLATFORM == 1
 #define DHCP_DEBUG 0
@@ -20,8 +21,8 @@ class TaddrList {
 		static constexpr int BITS_PER_NATIVE_INT = sizeof(nativeInt) * 8;
 		static constexpr int NUM_NATIVE_INTS = (MAX_ADDRESSES + BITS_PER_NATIVE_INT
 				- 1) / BITS_PER_NATIVE_INT;
-		nativeInt FactiveAddresses[NUM_NATIVE_INTS] = { };
-		nativeInt FcollectedAddresses[NUM_NATIVE_INTS] = { };
+		nativeInt FactiveAddresses[NUM_NATIVE_INTS] = { 0 };
+		nativeInt FcollectedAddresses[NUM_NATIVE_INTS] = { 0 };
 
 	public:
 
@@ -92,8 +93,6 @@ class Tdhcp : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_DHCP>{
 
 		TaddrList<64> Faddresses;
 
-		Taddr FmyAddr = TprotStream::ADDR_BROADCAST();
-
 		enum class TtimeoutType : dtypes::uint8 { recycle, decision, query, collect};
 		struct{
 				bool serverActive : 1;
@@ -104,8 +103,9 @@ class Tdhcp : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_DHCP>{
 		} Fstatus;
 
 		sdds_struct(
-			sdds_var(Tstring,Falias,sdds::opt::saveval,"NUCLEO1")
-			sdds_var(Tstring,Fserial,sdds::opt::readonly,"NUCLEO1")
+			sdds_var(Tstring,serial,sdds::opt::readonly,"NUCLEO1")
+			sdds_var(Tstring,alias,sdds::opt::saveval,"NUCLEO1")
+			sdds_var(Tuint8,FmyAddr,sdds::opt::readonly,TprotStream::ADDR_BROADCAST())
 		)
 
 	public:
@@ -135,8 +135,8 @@ class Tdhcp : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_DHCP>{
 		 * helper functions
 		 */
 
-		bool isMySerial(TprotStream& _msg){
-			return (_msg.readString() == Fserial);
+		bool isMyAlias(TprotStream& _msg){
+			return (_msg.readString() == alias);
 		}
 
 		bool isMyAddressValid(){
@@ -160,7 +160,7 @@ class Tdhcp : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_DHCP>{
 
 		void writeCrcAndSerial(TprotStream& _ps){
 			_ps.writeCs(0xCCCC);
-			_ps.writeString(Falias);
+			_ps.writeString(alias);
 			_ps.setSendPending();
 		}
 
@@ -178,7 +178,7 @@ class Tdhcp : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_DHCP>{
 		void handleDhcpSet(TprotStream& _msg){
 			Taddr setAddr;
 			if (!_msg.readVal(setAddr)) return;
-			if (isMySerial(_msg)){
+			if (isMyAlias(_msg)){
 				FmyAddr = setAddr;
 				Faddresses.store(FmyAddr);
 				FclientTimer.setTimeEvent(1);
@@ -235,7 +235,7 @@ class Tdhcp : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_DHCP>{
 					break;
 
 				case TvbusProtocoll::dhcp_whoIsReq: 
-					if (isMyAddressValid() && isMySerial(_msg)){
+					if (isMyAddressValid() && isMyAlias(_msg)){
 						_msg.setReturnHeader();
 						writeCrcAndSerial(_msg);		//needed?
 					} 

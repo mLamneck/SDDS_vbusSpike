@@ -83,7 +83,7 @@ class TuartBase : public Tthread{
 		/*****************************************************/
 
 	protected:
-		volatile Tbyte FmyAddr = 127;
+		volatile Tbyte FmyAddr = 255;
 		volatile uint32_t FackReceived = false;
 		volatile uint32_t FwaitForAck = false;
 		volatile uint32_t Fcollision = false;
