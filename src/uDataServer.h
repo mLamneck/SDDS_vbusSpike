@@ -520,8 +520,4 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 		}
 };
 
-#if MARKI_DEBUG_PLATFORM == 1
-	#include "../test/uDataServer_test.h"
-#endif
-
 #endif

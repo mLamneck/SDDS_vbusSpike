@@ -1,0 +1,5 @@
+#include "uTestCase.h"
+#include "uBinlocator_test.h"
+#include "uCom7_test.h"
+#include "uDataServer_test.h"
+#include "uDns_test.h"
