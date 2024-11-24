@@ -25,13 +25,11 @@ namespace com7{
     	static_assert(_pos >= 0 && _pos <= 7, "_pos must be between 0 and 7");
     	const uint8* in = static_cast<const uint8*>(_in);
     	uint8 stuffbyte = *in;
-    	uint8 b = in[_pos+1];
-    	if (stuffbyte & (1<<_pos)){
-    		return (b<<1)|1;
-    	}
-    	else{
+    	uint8 b = in[_pos+1]<<1;
+    	if (stuffbyte & (1<<_pos))
+    		return b|1;
+    	else
     		return b;
-    	}
     }
 
     Tres decrypt(const void* in, uint8 _inLen, void* out, uint8 _outSize){
