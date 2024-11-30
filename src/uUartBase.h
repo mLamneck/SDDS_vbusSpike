@@ -130,9 +130,12 @@ class TuartBase : public Tthread{
 			FpRxCurrBuf = &FrxBuffers[0];
 		}
 
+		virtual void begin(){ }
+
 		void begin(Tevent* _rxReceived, Tevent* _txIdle){
 			FevReveiveNotify = _rxReceived;
 			FevTxIdleNotify = _txIdle;
+			begin();
 		}
 
 		void setMyAddr(const Tbyte _myAddr){ FmyAddr = _myAddr; }

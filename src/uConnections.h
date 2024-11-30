@@ -189,7 +189,9 @@ class Tconnections : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_
 				auto conn = Fconnections.get(i);
 				if (!conn->isFree() && !conn->hasRxAtivity()){
 					conn->shutdown();
-				}				
+				}
+				else
+					conn->setRxActivity(false);
 			}
 		}
 
@@ -235,11 +237,15 @@ class Tconnections : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_
 			if (_ev == &FevKa){
 				while (FkaCurrIdx<Fconnections.MAX_OBJECTS){
 					auto conn = Fconnections.get(FkaCurrIdx++);
-					if (!conn->isFree() && !conn->hasTxActivity()){
-						_msg.setHeader(conn->clientAddr(),0,conn->clientPort(),TvbusProtocoll::port_ka);
-						_msg.writePort(FkaCurrIdx + FIRST_PORT - 1);
-						FevKa.setTimeEvent(KEEP_ALIVE_DELAY);
-						_msg.setSendPending();
+					if (!conn->isFree()){
+						 if(!conn->hasTxActivity()){
+							_msg.setHeader(conn->clientAddr(),0,conn->clientPort(),TvbusProtocoll::port_ka);
+							_msg.writePort(FkaCurrIdx + FIRST_PORT - 1);
+							FevKa.setTimeEvent(KEEP_ALIVE_DELAY);
+							_msg.setSendPending();
+						 }
+						 else
+							 conn->setTxActivity(false);
 					}
 				}
 
