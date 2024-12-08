@@ -54,6 +54,35 @@ class TvbusStimulSpike : public TvbusSpike485{
 				dtypes::uint32 uint32Val = 1;
 				switch(stimul_status){
 					case 0:
+						//first give an ID per dhcp set
+						Fps.init(&FtxBuffer.data[0]);
+						Fps.setHeader(0xFF,0xCC,0,TvbusProtocoll::dhcp_set);
+						Fps.writeByte(servAddr);
+						Fps.writeString("NUCLEO1");
+						Fps.init(&FtxBuffer.data[0],Fps.length());
+						Fdhcp.handleMessage(Fps);
+						stimul_status = 20;
+						FevStimul.setTimeEvent(10);
+
+						Fps.init(&FtxBuffer.data[0]);
+						Fps.setHeader(6,5,0,TvbusProtocoll::ds_type_req);
+						Fps.writeByte(13);	//client port
+						Fps.writeByte(4);
+						Fps.writeByte(7);
+						Fps.writeByte(0);
+						Fps.writeByte(0);
+						Fps.writeByte(255);
+						auto len = Fps.length();
+						Fps.init(&FtxBuffer.data[0],Fps.length());
+						handleMessage();
+						stimul_status = 30;	
+						return;
+				}
+
+		}
+};
+
+/*
 						if (1==2){
 							for (int i=0; i<4; i++){
 								Fps.init(&FtxBuffer.data[0]);
@@ -102,16 +131,6 @@ class TvbusStimulSpike : public TvbusSpike485{
 						}
 						stimul_status = 1;
 
-					case 1:
-						//first give an ID per dhcp set
-						Fps.init(&FtxBuffer.data[0]);
-						Fps.setHeader(0xFF,0xCC,0,TvbusProtocoll::dhcp_set);
-						Fps.writeByte(servAddr);
-						Fps.writeString("NUCLEO1");
-						Fps.init(&FtxBuffer.data[0],Fps.length());
-						Fdhcp.handleMessage(Fps);
-						stimul_status = 20;
-						FevStimul.setTimeEvent(10);
 
 						//open port
 						Fps.init(&FtxBuffer.data[0]);
@@ -125,7 +144,6 @@ class TvbusStimulSpike : public TvbusSpike485{
 						Fps.init(&FtxBuffer.data[0],Fps.length());
 						handleMessage();
 						
-						/*
 						Fps.init(&FtxBuffer.data[0]);
 						Fps.setHeader(servAddr,clientAddr,0,TvbusProtocoll::ds_type_req);
 						Fps.writeByte(13);	//client port
@@ -136,7 +154,7 @@ class TvbusStimulSpike : public TvbusSpike485{
 						//Fps.init(&FtxBuffer.data[0],Fps.length());
 						FtxBuffer.length = Fps.length();
 						readMessage(&FtxBuffer);
-						*/
+
 						stimul_status = 2;
 						FevStimul.setTimeEvent(100);
 						return;
@@ -232,5 +250,4 @@ class TvbusStimulSpike : public TvbusSpike485{
 						handleMessage();
 						break;
 				}
-		}
-};
+*/
