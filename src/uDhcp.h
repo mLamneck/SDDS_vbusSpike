@@ -61,6 +61,7 @@ class TaddrList {
 
 template <class TprotStream>
 class Tdhcp : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_DHCP>{
+	Tmeta meta() override { return Tmeta{TYPE_ID,0,"DHCP"}; }
 	public:
 		constexpr static int FIRST_FUNC = TvbusProtocoll::dhcp_firstFunc;		
 		constexpr static int LAST_FUNC = TvbusProtocoll::dhcp_lastFunc;		

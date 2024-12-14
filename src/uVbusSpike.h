@@ -12,7 +12,8 @@
 #include "uDataServer.h"
 
 template <class _TprotStream, class _Tstream>
-class TvbusSpikeBase : public Tthread{
+class TvbusSpikeBase : public Tthread, public TmenuHandle{
+	Tmeta meta() override { return Tmeta{TYPE_ID,0,"NETWORK"}; }
 	public:
 		typedef _TprotStream TprotStream;
 
@@ -27,14 +28,6 @@ class TvbusSpikeBase : public Tthread{
 		typedef typename TprotStream::t_prot_cs t_prot_cs; 
 		typedef typename TprotStream::t_prot_port Tport;
 		constexpr static int nCOMM_THREADS = 1;
-
-		/**
-		 * @brief declare some variables to add a network menu to the struct
-		 * 
-		 */
-		sdds_var(TmenuHandle,NETWORK)
-		sdds_var(Tstruct,DHCP)
-
 	protected:
 		//handshake events with _Tstream
 		Tevent FevRx;
@@ -76,12 +69,10 @@ class TvbusSpikeBase : public Tthread{
 				 * @brief make network public
 				 * 
 				 */
+				addDescr(&Fdhcp);
 				auto s = _root.find("SYSTEM");
-				if (s && s->isStruct()){
-					DHCP.__setValue(&Fdhcp);
-					NETWORK.addDescr(&DHCP);
-					static_cast<Tstruct*>(s)->value()->addDescr(&NETWORK,1);
-				}
+				if (s && s->isStruct())
+					static_cast<Tstruct*>(s)->value()->addDescr(this,1);					
 			}
 
 	protected:
