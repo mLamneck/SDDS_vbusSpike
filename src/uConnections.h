@@ -50,6 +50,7 @@ namespace vbusSpike{
 		public:
 			Taddr FclientAddr;
 			Tport FclientPort;
+			sdds::TlinkTime FlinkTime;
 			TobjectEvent FobjEvent;
 			TdataST<TprotStream> FdataThread;
 
@@ -73,12 +74,27 @@ namespace vbusSpike{
 			}
 
 			template <class _Tlocator>
-			void setupLink(Tthread* _thread, Tport _servPort, _Tlocator& l){
+			void setupLink(Tthread* _thread, Tport _servPort, _Tlocator& l, sdds::TlinkTime _linkTime){
 				FobjEvent.setOwner(_thread);
 				TcommThreadDefs::eventPort(FobjEvent.event(),_servPort);
 				FdataThread.Fevent.setOwner(_thread);
 				TcommThreadDefs::eventPort(&FdataThread.Fevent,_servPort);
+				FlinkTime = _linkTime;
 				FobjEvent.setObservedRange(l);
+
+				/* if we extend the option, we can specify a linkTime within the option
+				   and we can iterate over all items be observed and decide what linkTime to use
+				auto f = l.firstItem();
+				do{
+					if (f->option().linkTime().isTimed()){
+
+					}
+					f = f->next();
+				} while (f != l.lastItem());			
+				*/
+
+				if (_linkTime != sdds::TlinkTime::ON_CHANGE) return;
+
 				if (l.result()->isStruct()){
 					l.menuHandle()->events()->push_first(&FobjEvent);
 				}
@@ -86,14 +102,7 @@ namespace vbusSpike{
 					static_cast<TarrayBase*>(l.result())->events()->push_first(&FobjEvent);
 				}
 			}
-			
-			/*
-			void setupLink(Tthread* _thread, TmenuHandle* _struct, dtypes::uint16 _port){
-				FobjEvent.setOwner(_thread);
-				FobjEvent.event()->args.word1 = _port;
-				FobjEvent.Fstruct = _struct;
-			 }
-			 */
+
 			void setTxActivity(bool _val){ FtxActivity = _val; }
 			void setRxActivity(bool _val){ FrxActivity = _val; }
 			bool hasTxActivity(){ return FtxActivity; }

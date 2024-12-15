@@ -239,15 +239,10 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 				return _msg.buildErrMsg(TvbusProtocoll::err_invalidPath,_conn->clientPort());
 
 			dtypes::uint8 linkTime = 0;
-			if (!_msg.readVal(linkTime)) return _msg.buildErrMsg(TvbusProtocoll::err_invalidLinkTime,_conn->clientPort());
+			if (!_msg.readVal(linkTime) || !_conn->FlinkTime.load(linkTime)) 
+				return _msg.buildErrMsg(TvbusProtocoll::err_invalidLinkTime,_conn->clientPort());
 
-			/**
-			 * toDo:
-			 * implement linkTime
-			 */
-			if (linkTime != 1) return _msg.buildErrMsg(TvbusProtocoll::err_invalidLinkTime,_conn->clientPort());
-
- 			_conn->setupLink(owner(),_msg.port(),l);
+ 			_conn->setupLink(owner(),_msg.port(),l,_conn->FlinkTime);
 			setMsgRequest(_conn->FobjEvent.event(),true);
 			_conn->FobjEvent.signal(l.firstItemIdx(),l.lastItemIdx());
 			_conn->FdataThread.resetBusy();
@@ -510,12 +505,19 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 		constexpr void execute(Tevent* _ev, TprotStream& _msg, Tconnection* _conn){
 			if (_conn->isDataEvent(_ev)){
 				auto ev = TobjectEvent::retrieve(_ev);
-				builLinkDataMsg(_msg,_conn,ev->first(),ev->last(),0);
+				if (_conn->FlinkTime.isTimed()){
+					if (builLinkDataMsg(_msg,_conn,ev->firstObserved(),ev->lastObserved(),0))
+						_ev->setTimeEvent(_conn->FlinkTime.toMseconds());
+				}else
+					builLinkDataMsg(_msg,_conn,ev->first(),ev->last(),0);
 			}
 
 			else if (_ev == &_conn->FdataThread.Fevent){
-				if (builLinkDataMsg(_msg,_conn,_conn->FdataThread.FcurrIdx,_conn->FdataThread.FlastIdx,_conn->FdataThread.FmsgCnt))
+				if (builLinkDataMsg(_msg,_conn,_conn->FdataThread.FcurrIdx,_conn->FdataThread.FlastIdx,_conn->FdataThread.FmsgCnt)){
 					_conn->FdataThread.resetBusy();
+					if (_conn->FlinkTime.isTimed())
+						_conn->FobjEvent.event()->setTimeEvent(_conn->FlinkTime.toMseconds());
+				}
 			}
 		}
 };

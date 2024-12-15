@@ -154,11 +154,6 @@ class TbufferStream{
 		template <typename T>
 		bool writeVal(const T _value){
 			if (!hasSpaceFor(sizeof(T))) return false;
-			/*
-			 * *reinterpret_cast<T*> leads to hard fault on STM32 because of memory alignment
-			 * -> use memcpy instead
-			 */
-			//*reinterpret_cast<T*>(&Fbuffer[FwritePos]) = _value;
 			memcpy(&Fbuffer[FwritePos], &_value, sizeof(T));
 			FwritePos += sizeof(T);
 			return true;
@@ -171,6 +166,40 @@ class TbufferStream{
 			FreadPos += sizeof(T);
 			return true;
 		}
+
+		/* this can be used to load data from complex objects. This will be usefull if we use the protocoll
+			on udp where Taddr contains IP and Port. It might be event useful now to declare Taddr as class
+			and have methods like isBroadcast on it. But I have no time to test this now
+		template <typename T>
+		typename std::enable_if<std::is_trivially_copyable<T>::value && !std::is_class<T>::value && sizeof(T) == 1, bool>::type
+		readVal(T& _value){
+			if (bytesAvailableForRead() < (int)sizeof(T)) return false;
+			_value = Fbuffer[FreadPos];
+			FreadPos += sizeof(T);
+			return true;
+		}
+		
+		template <typename T>
+		typename std::enable_if<std::is_trivially_copyable<T>::value && !std::is_class<T>::value && sizeof(T) != 1, bool>::type
+		readVal(T& _value){
+			if (bytesAvailableForRead() < (int)sizeof(T)) return false;
+			memcpy(&_value,&Fbuffer[FreadPos], sizeof(T));
+			FreadPos += sizeof(T);
+			return true;
+		}
+
+		template <typename T>
+		typename std::enable_if<std::is_class<T>::value, bool>::type
+		readVal(T& _value) {
+			//toBe done ....
+			//if (!_value.deserialize(buffer + readPos, size - readPos)) return false;
+			//readPos += sizeof(T);
+			//static_assert(false,"not implemented");
+			static_assert(!std::is_class<T>::value,"not implemented");
+			return false;
+		}
+
+		*/
 
 		bool readOfs(dtypes::uint8 _ofs){
 			if (_ofs >= bytesAvailableForRead()) return false;
@@ -379,19 +408,6 @@ typedef TvbusProtStream<
 	dtypes::uint8, 
 	dtypes::uint8,
 	32
-> Tvbus485ProtStream; 
-
-
-/*
-		static constexpr auto c_maxMsgLen = dt::c_maxMsgLen;
-
-		static constexpr auto prot_request = 0x01;
-
-		static constexpr auto dhcp_set = 0x02;
-		static constexpr auto dhcp_req = 0x02 || prot_request;
-
-		static constexpr auto prot_portOpen = 0x0A || prot_request;
-		static constexpr auto prot_portClose = 0x0C || prot_request;
-*/
+> Tvbus485ProtStream;
 
 #endif
