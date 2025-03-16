@@ -305,7 +305,7 @@ class TuartBase : public Tthread{
 			 * otherwise there must be an ongoing transmission and
 			 * 		we should receive an Receive Complete event
 			 */
-			FendOfFrameReceived = false;
+			FprivStatus.inRandonTimeout = false;
 			setTimeEvent(10);
 		}
 
