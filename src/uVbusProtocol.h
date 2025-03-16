@@ -3,6 +3,7 @@
 
 #include "uPlatform.h"
 #include <uMemoryUtils.h>
+#include "uTypedef.h"
 
 class TvbusProtocoll{
 	public:
@@ -45,6 +46,23 @@ class TvbusProtocoll{
 		static constexpr auto ds_fpdr_req = ds_fpdr | request;
 
 		static constexpr auto func_error = 0xFE;
+
+		//Bootloader Functions
+		static constexpr auto bl_notification 		= 0x60;
+		static constexpr auto bl_enterProgMode 		= 0x62;
+		static constexpr auto bl_enterProgModeReq 	= bl_enterProgMode | request;
+		static constexpr auto bl_read 				= 0x64;
+		static constexpr auto bl_read_req			= bl_read | request;
+		static constexpr auto bl_write 				= 0x66;
+		static constexpr auto bl_write_req			= bl_write | request;
+		static constexpr auto bl_error 				= 0x68;
+
+		//bootloader error codes
+		static constexpr auto bl_err_invAddr 		= 1;
+		static constexpr auto bl_err_invCS 			= 2;
+		static constexpr auto bl_err_invPacketSize	= 3;
+		static constexpr auto bl_err_invProgMode	= 4;
+		static constexpr auto bl_err_progFailed		= 5;
 
 		/** error codes */
 

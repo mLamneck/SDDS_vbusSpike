@@ -6,6 +6,7 @@
 #include "uStrings.h"
 #include "uRandom.h"
 #include "uTypedef.h"
+#include "uSerialNumber.h"
 
 #if MARKI_DEBUG_PLATFORM == 1
 #define DHCP_DEBUG 0
@@ -61,7 +62,7 @@ class TaddrList {
 
 template <class TprotStream>
 class Tdhcp : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_DHCP>{
-	Tmeta meta() override { return Tmeta{TYPE_ID,0,"DHCP"}; }
+	Tmeta meta() override { return Tmeta{TYPE_ID,0,"dhcpServer"}; }
 	public:
 		constexpr static int FIRST_FUNC = TvbusProtocoll::dhcp_firstFunc;		
 		constexpr static int LAST_FUNC = TvbusProtocoll::dhcp_lastFunc;		
@@ -104,8 +105,8 @@ class Tdhcp : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_DHCP>{
 		} Fstatus;
 
 		sdds_struct(
-			sdds_var(Tstring,serial,sdds::opt::readonly,"NUCLEO1")
-			sdds_var(Tstring,alias,sdds::opt::saveval,"NUCLEO1")
+			sdds_var(Tstring,serial,sdds::opt::readonly,mms::serialNumber::read())
+			sdds_var(Tstring,alias,sdds::opt::saveval,mms::serialNumber::read())
 			sdds_var(Tuint8,FmyAddr,sdds::opt::readonly,TprotStream::ADDR_BROADCAST())
 		)
 
