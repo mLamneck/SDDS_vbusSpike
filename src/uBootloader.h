@@ -58,6 +58,7 @@ class Tbootloader : public Tthread{
 		Tevent FevRx;
 		Tevent FevTxIdle;
 		Tevent FevTransmit;
+		Tevent FevGlobalTimeout;
 		_Tstream* Fstream = nullptr;
 
 	protected:
@@ -142,6 +143,7 @@ class Tbootloader : public Tthread{
 				Fps.writeString(mySerial());
 				writeInt24(getDevId());
 				Fps.setSendPending();
+				FevGlobalTimeout.reclaim();
 			} else
 				startToApplication();
 		}
@@ -409,6 +411,8 @@ class Tbootloader : public Tthread{
 				setPriority(0);
 				readMessages();
 			}
+			else if (_ev == &FevGlobalTimeout)
+				startToApplication();
 			else if (isTaskEvent(_ev)){
 				board::TledRed::toggle();
 				setTimeEvent(200);
@@ -419,11 +423,13 @@ class Tbootloader : public Tthread{
 			: FevRx(this)
 			, FevTxIdle(this,2)
 			, FevTransmit(this,1)
+			, FevGlobalTimeout(this,3)
 			, Fstream(_stream)
 		{
 			Fstream->begin(&FevRx,&FevTxIdle);
 			//toDo: find out why we miss one message if we trigger this immediately
 			FevTransmit.setTimeEvent(5);
+			FevGlobalTimeout.setTimeEvent(5000);
 		}
 
 };
