@@ -64,46 +64,42 @@ class TvbusProtocoll{
 		static constexpr auto bl_err_invProgMode	= 4;
 		static constexpr auto bl_err_progFailed		= 5;
 
-		/** error codes */
-
+		/**
+		 * @brief Error codes
+		 * This list defines all relevant error codes. 
+		 * Some codes are commented out because they are not used in this codebase, 
+		 * but they are used in other hardware implementations that share the same protocol. 
+		 * Including them here (commented) avoids ambiguity and helps ensure compatibility across systems.
+		 */
 		static constexpr auto err_serverBusy 		= 0xFF;
 		static constexpr auto err_invalidPort 		= 0xFE;
 		static constexpr auto err_invalidPath 		= 0xFD;
+		/*
+		static constexpr auto err_noConnAvail 		= 0xFC;		//does this event exist? It was replaced somewhen by err_noMorePorts???					
+		static constexpr auto err_outOfMemory 		= 0xFB;					
+		static constexpr auto err_noMoreEvents 		= 0xFA;					
 
+		static constexpr auto err_pointerNil		= 249;		//0xF9		
+		static constexpr auto err_WrongArrayAccess	= 248;		//0xF8
+		static constexpr auto err_outOfData		    = 247;		//0xF7
+		static constexpr auto err_EOF				= 246;		//0xF6
+		static constexpr auto err_NoneOfMyBusiness	= 245;		//0xF5
+		static constexpr auto err_notAllowed		= 244;		//0xF4
+		static constexpr auto err_timeout			= 243;		//0xF3
+		static constexpr auto err_invalidEvID		= 242;		//0xF2
+		static constexpr auto err_servNotInstalled	= 241;		//0xF1
+		*/
 		static constexpr auto err_invalidLinkTime	= 0xF0;
-
-		static constexpr auto err_noMorePorts 		= 0xEB;
-
-
-/*
-.equ	NoError					=	0
-.equ    ErrServerBusy			=	255		;0xFF
-.equ    ErrInvalidPort    		=  	254		;0xFE
-.equ    ErrInvalidPath    		=   253		;0xFD
-.equ	ErrNoConnAvail	  		=	252		;0xFC
-.equ	ErrOutOfMemory	  		=	251		;0xFB
-.ifndef ErrNoMoreEvents
-.equ	ErrNoMoreEvents			=	250		;0xFA
-;.equ	ErrNoMorePorts			= 	236		;0xEB
-.endif
-.equ	ErrPointerNil			=	249		;0xF9
-.equ	ErrWrongArrayAccess		=	248		;0xF8
-.equ	ErrOutOfData		    =	247		;0xF7
-.equ	ErrEOF					=	246		;0xF6
-.equ	ErrNoneOfMyBusiness		=	245		;0xF5
-.equ	ErrNotAllowed			=	244		;0xF4
-.equ	ErrTimeout				=	243		;0xF3
-.ifndef ErrInvalidEvID
-.equ	ErrInvalidEvID			=	242		;0xF2
-.endif
-.equ	ErrServerNotInstalled	=	241		;0xF1
-.equ	ErrWrongLinkTime		=	240		;0xF0
-.equ	ErrPortAccessDenied		=	239		;0xEF		port/id don´t match in close port request
-.equ	ErrNoHandler			=	238		;0xEE
-.equ	ErrHashMismatch			= 	237		;0xED
-
-.equ	ErrNoMorePorts			= 	236		;0xEC
-*/
+		/*
+		static constexpr auto err_portAccessDenied	= 239;		//0xEF		port/id don´t match in close port request
+		static constexpr auto err_NoHandler			= 238;		//0xEE
+		static constexpr auto err_hashMismatch		= 237;		//0xED
+		*/
+		static constexpr auto err_noMorePorts 		= 0xEC;
+		
+		/**new error codes only in this codebase */
+		static constexpr auto err_invalidAddress	= 0xA0;
+		static constexpr auto err_noClientPort		= 0x9F;
 };
 
 

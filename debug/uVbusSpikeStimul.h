@@ -1,3 +1,5 @@
+#include <uTypedef.h>
+
 class TvbusStimulSpike : public TvbusSpike485{
 	private:
 		typename Tstream::TmessageBufferRX FtxBuffer;
@@ -58,19 +60,25 @@ class TvbusStimulSpike : public TvbusSpike485{
 						Fps.init(&FtxBuffer.data[0]);
 						Fps.setHeader(0xFF,0xCC,0,TvbusProtocoll::dhcp_set);
 						Fps.writeByte(servAddr);
-						Fps.writeString("NUCLEO1");
-						Fps.init(&FtxBuffer.data[0],Fps.length());
-						Fdhcp.handleMessage(Fps);
-						stimul_status = 20;
-						FevStimul.setTimeEvent(10);
-
+						Fps.writeString("DEF_SERIAL");
+						//Fps.init(&FtxBuffer.data[0],Fps.length());
+						FtxBuffer.length = Fps.length();
+						readMessage(&FtxBuffer);
+						stimul_status++;
+						FevStimul.setTimeEvent(100);
+						break;
+					case 1:
 						Fps.init(&FtxBuffer.data[0]);
 						Fps.setHeader(servAddr,clientAddr,0,TvbusProtocoll::port_open);
 						Fps.writeByte(1);//client port
-						Fps.init(&FtxBuffer.data[0],Fps.length());
-						handleMessage();
+						//Fps.init(&FtxBuffer.data[0],Fps.length());
+						FtxBuffer.length = Fps.length();
+						readMessage(&FtxBuffer);
+						stimul_status++;
+						FevStimul.setTimeEvent(100);
+						break;
+					case 2:
 						Fps.init(&FtxBuffer.data[0]);
-
 						Fps.setHeader(servAddr,clientAddr,0x10,TvbusProtocoll::ds_link_req);
 						Fps.writeByte(3);
 						Fps.writeByte(5);
@@ -79,8 +87,32 @@ class TvbusStimulSpike : public TvbusSpike485{
 						Fps.writeByte(1);//link time
 						FtxBuffer.length = Fps.length();
 						readMessage(&FtxBuffer);
-
-
+						stimul_status++;
+						FevStimul.setTimeEvent(100);
+						break;
+					case 3:
+						Fps.init(&FtxBuffer.data[0]);
+						Fps.setHeader(servAddr,clientAddr,0,TvbusProtocoll::port_open);
+						Fps.writeByte(1);//client port
+						//Fps.init(&FtxBuffer.data[0],Fps.length());
+						FtxBuffer.length = Fps.length();
+						readMessage(&FtxBuffer);
+						stimul_status++;
+						//FevStimul.setTimeEvent(100);
+						break;
+					case 4:
+						Fps.init(&FtxBuffer.data[0]);
+						Fps.setHeader(servAddr,clientAddr,0x10,TvbusProtocoll::ds_link_req);
+						Fps.writeByte(3);
+						Fps.writeByte(6);
+						Fps.writeByte(0);
+						Fps.writeByte(255);
+						Fps.writeByte(1);//link time
+						FtxBuffer.length = Fps.length();
+						readMessage(&FtxBuffer);
+						stimul_status++;
+						//FevStimul.setTimeEvent(100);
+						break;
 				}
 
 		}

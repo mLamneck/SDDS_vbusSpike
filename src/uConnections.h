@@ -58,8 +58,10 @@ namespace vbusSpike{
 			bool isFree() { return (FclientPort == 0); }
 			Taddr clientAddr() { return FclientAddr; }
 			Tport clientPort() { return FclientPort; }
-			void shutdown(){
-				FclientPort = 0;
+			void shutdown(bool _resetClientFields = true){
+				if (_resetClientFields){
+					FclientPort = 0;
+				}
 				FdataThread.Fevent.reclaim();
 				FdataThread.Fevent.setOwner(nullptr);
 				FobjEvent.setOwner(nullptr);
@@ -75,6 +77,11 @@ namespace vbusSpike{
 
 			template <class _Tlocator>
 			void setupLink(Tthread* _thread, Tport _servPort, _Tlocator& l, sdds::TlinkTime _linkTime){
+				/**
+				 * befeore doing anything here, make sure the connection ctx is in a clean state:
+				 * no observedObjs stored, no pending events, ...
+				 */
+				shutdown(false);
 				FobjEvent.setOwner(_thread);
 				TcommThreadDefs::eventPort(FobjEvent.event(),_servPort);
 				FdataThread.Fevent.setOwner(_thread);
@@ -159,6 +166,7 @@ class Tconnections : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_
 			else if (idx == -1) return idx;
 
 			auto conn = Fconnections.get(idx);
+			conn->shutdown();
 			conn->FclientAddr = _addr;
 			conn->FclientPort = _clientPort;
 			conn->setRxActivity(true);
@@ -168,7 +176,13 @@ class Tconnections : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_
 
 		void handleOpenPortReq(TprotStream& _ps){
 			Tport clientPort;
-			if (!_ps.readVal(clientPort)) return;
+			if (!_ps.readVal(clientPort)) 				
+				return _ps.buildErrMsg(TvbusProtocoll::err_noClientPort,0);
+			if (clientPort==0)
+				return _ps.buildErrMsg(TvbusProtocoll::err_invalidPort,clientPort);
+			if (_ps.source()==0)
+				return _ps.buildErrMsg(TvbusProtocoll::err_invalidAddress,clientPort);
+
 			auto connIdx = allocateConnection(_ps.source(),clientPort);
 			if (connIdx > -1){
 				_ps.setReturnHeader(clientPort);
