@@ -252,6 +252,8 @@ class Tconnections : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_
 							_msg.writePort(FkaCurrIdx + FIRST_PORT - 1);
 							FevKa.setTimeEvent(KEEP_ALIVE_DELAY);
 							_msg.setSendPending();
+							_ev->setTimeEvent(10);
+							return;
 						 }
 						 else
 							 conn->setTxActivity(false);
