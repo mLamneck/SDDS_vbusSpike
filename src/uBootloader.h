@@ -21,7 +21,12 @@ class Tbootloader : public Tthread{
 	public:
 		constexpr static int BL_SIZE = _BL_SIZE;
 	private:
-		constexpr static dtypes::uint8	BL_VERSION 	= 3;
+		/**
+		 * BL_VERSION=4:
+		 * 	- global timeout
+		 * 	- HAL Timing corrected
+		 */
+		constexpr static dtypes::uint8	BL_VERSION 	= 4;
 		constexpr static dtypes::uint8	bls_cIDLE	= 0;
 		constexpr static dtypes::uint8	bls_cFLASH 	= 1;
 
