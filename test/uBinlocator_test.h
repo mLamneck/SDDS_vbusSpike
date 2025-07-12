@@ -107,6 +107,12 @@ class TbinLocatorTest : public TtestCase{
 			return testPath(&reqPath[0],TbinLocator::Tresult::isArray,&FtestData.allTypes.Fstr,strDescr,strDescr);
         },"enter string 4,1,8,0,255");
 
-        return false;
+		doTest([this](){
+            int reqPath[] = {3,1,10,2};
+			return testPath(&reqPath[0],TbinLocator::Tresult::isInvalid,&FtestData.allTypes,FtestData.allTypes.get(1),FtestData.allTypes.get(1+2-1));
+        },"3,1,10,2");
+
+
+		return false;
     };
 } binLocator_test("binLocator_test");

@@ -89,7 +89,7 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 			_msg.writeVal(_typeST.FtypeMsgCnt++);
 			_msg.writeVal(_typeST.FtypeCurrIdx);
 			bool typeComplete = true;
-			auto type = d->type(); 
+			auto type = d->type();
 			switch(type){
 				case sdds::Ttype::ENUM: 
 					typeComplete = writeEnums(_msg,_typeST,static_cast<TenumBase*>(d));
@@ -425,6 +425,12 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 			_msg.writeVal(_currIdx);							//itemIdx (ofs in array buffer)				
 
 			auto observedObj = _conn->FobjEvent.observedObj();
+			/**
+			 * observedObj cannot be null at this point if everything works as expected
+			 * anyway jump out if something is  wrong
+			 */
+			if (!observedObj) return true;
+
 			if (observedObj->isStruct()) {
 				return builLinkDataMsgStruct(_msg,_conn,_currIdx,_lastIdx,_msgCnt,static_cast<Tstruct*>(observedObj)->value());
 			}

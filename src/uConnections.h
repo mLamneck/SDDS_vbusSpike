@@ -64,7 +64,6 @@ namespace vbusSpike{
 				}
 				FdataThread.Fevent.reclaim();
 				FdataThread.Fevent.setOwner(nullptr);
-				FobjEvent.setOwner(nullptr);
 				Tdescr* observedObj = FobjEvent.observedObj();
 				if (observedObj){
 					if (observedObj->isStruct()) 
