@@ -163,8 +163,8 @@ Possible Errors:
 
 |			| Ctrl		| Destiny 	| Source    | Port 	| Func 	| 		 	Data					|
 |-			| -			|- 		  	| -			| -		| -		| :- 								|
-|<b>Req 	| AddrSize	| sAddr 	| cAddr		|0		| 0x26	| cPort \| path 	\| binary data 	|
-|<b>Ans 	| AddrSize	| cAddr 	| sAddr		|5		| 0x27	| -									|		
+|<b>Req 	| AddrSize	| sAddr 	| cAddr		|0		| 0x25	| cPort \| path 	\| binary data 	|
+|<b>Ans 	| AddrSize	| cAddr 	| sAddr		|5		| 0x24	| -									|		
 
 Possible Errors:
 * err_invalidPath
