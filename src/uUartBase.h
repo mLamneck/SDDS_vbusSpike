@@ -1,6 +1,10 @@
 #ifndef UUART_H
 #define UUART_H
 
+#ifndef MMS_REBOOT_ON_SAME_ID
+#define MMS_REBOOT_ON_SAME_ID 1
+#endif
+
 #if MARKI_DEBUG_PLATFORM==0
 	#define DEBUG_UART_ECHO 0//!MARKI_DEBUG_PLATFORM
 #else
@@ -70,10 +74,10 @@ class TuartBase : public Tthread{
 
 				//receive errors
 				//ERROR												CNT				DESCR
-				uint32_t bufOvr 			= 0;	//ALL				msg bigger than max msg size
+				uint32_t bufOvr 		= 0;	//ALL				msg bigger than max msg size
 				uint32_t noMoreBufs 	= 0;	//ALL				all rx buffers full and a new message starts
 				uint32_t msgTooSmall	= 0;	//ALL				msg received and length < min msg lenght
-				uint32_t frameErrors 	= 0;	//MINE			com7 conversion failed
+				uint32_t frameErrors 	= 0;	//MINE				com7 conversion failed
 
 				//transmit errors
 				uint32_t txCollisions	= 0;	//collision detected while sending
@@ -89,6 +93,8 @@ class TuartBase : public Tthread{
 		volatile uint32_t Fcollision = false;
 		volatile bool FendOfFrameReceived = false;
 		volatile bool FendOfFrameEvPending = false;
+
+		volatile uint32_t FhardwErrCnt = 0;
 
 		void setWaitForAck(){
 			FwaitForAck = true;
@@ -215,11 +221,14 @@ class TuartBase : public Tthread{
 
 		virtual void disableIsr(){ }
 		virtual void enableIsr(){ }
-		virtual void switchToRx(){ }
+		virtual void emergencyReinit(){ }
 		virtual void initHardware() {}
 		virtual void sendAck() {};
 		virtual void resetRxBusy() {};
 		virtual bool doWrite() = 0;
+#if MMS_REBOOT_ON_SAME_ID
+		virtual void doReboot() = 0;
+#endif
 
 		void setRandomTimeout(){
 			resetRxBusy();
@@ -227,10 +236,6 @@ class TuartBase : public Tthread{
 			setTimeEventTicks(r+3);
 			FprivStatus.inRandonTimeout = true;
 			FendOfFrameEvPending = false;
-		}
-
-		void handleError(const Tstatus _errors){
-
 		}
 
 		void setTxIdle(){
@@ -248,8 +253,7 @@ class TuartBase : public Tthread{
 		void resetUart(){
 			FprivStatus.inTransmission = false;
 			disableIsr();
-			initHardware();
-			switchToRx();
+			emergencyReinit();
 			enableIsr();
 		}
 
@@ -266,11 +270,12 @@ class TuartBase : public Tthread{
 				 * try to to reinit the hardware?
 				 */
 				if (FprivStatus.inTransmission){
-					//resetUart();
+					resetUart();
 					FprivStatus.inTransmission = false;
+					setTxIdle();
 				}
 
-				if (FprivStatus.inRandonTimeout){
+				else if (FprivStatus.inRandonTimeout){
 					FprivStatus.inRandonTimeout = false;
 
 					if (!FendOfFrameEvPending){
@@ -305,6 +310,7 @@ class TuartBase : public Tthread{
 			 * otherwise there must be an ongoing transmission and
 			 * 		we should receive an Receive Complete event
 			 */
+			//FendOfFrameReceived = false;
 			FprivStatus.inRandonTimeout = false;
 			setTimeEvent(10);
 		}
@@ -387,6 +393,14 @@ class TuartBase : public Tthread{
 		 * to be called from ISR
 		 */
 		/***********************************************************************/
+
+#if MMS_REBOOT_ON_SAME_ID
+		void rebootIfChecksumIsValid(){
+			if (crc8::calc(FpRxCurrBuf->data,FrxCurr) == 0) return;
+			doReboot();
+		}
+#endif
+
 		void isr_readByte(Tbyte _byte){
 
 			//not end of message
@@ -407,24 +421,36 @@ class TuartBase : public Tthread{
 
 				else{
 					clearWaitForAck();
-					if (FrxCurr < cRX_BUF_SIZE){
-						if (FrxCurr >= 6){	//minimum msg size=5 + cs + stuffbyte
-							Tbyte destiny = com7::decryptByteAtPos<1>(FpRxCurrBuf->data);
-							if (destiny==FmyAddr || destiny==ADDR_BROADCAST){
-								resetRxBusy();
-								if (FpRxCurrBuf->length==0){
-									FpRxCurrBuf->data[FrxCurr++] = _byte;
-									auto len = com7::decrypt(FpRxCurrBuf->data,FrxCurr,FpRxCurrBuf->data,cRX_BUF_SIZE);
-									if (len > 0){
-										if (destiny != ADDR_BROADCAST)
-											sendAck();
-										FpRxCurrBuf->length = len;
-										switchToNextRxBuffer();
-									} else handleFrameError();
-								} else handleNoMoreBuffers();
-							}
-						} else handleErrMsgSmall();
-					} else handleBufferOvr();
+					if (FhardwErrCnt == 0){
+						if (FrxCurr < cRX_BUF_SIZE){
+							if (FrxCurr >= 6){	//minimum msg size=5 + cs + stuffbyte
+								Tbyte destiny = com7::decryptByteAtPos<1>(FpRxCurrBuf->data);
+#if MMS_REBOOT_ON_SAME_ID
+								Tbyte source = com7::decryptByteAtPos<2>(FpRxCurrBuf->data);
+								if (source == FmyAddr && FmyAddr != ADDR_BROADCAST){
+									rebootIfChecksumIsValid();
+									handleFrameError();
+								}
+								else if (destiny==FmyAddr || destiny==ADDR_BROADCAST){
+#else
+								if (destiny==FmyAddr || destiny==ADDR_BROADCAST){
+#endif
+									resetRxBusy();
+									if (FpRxCurrBuf->length==0){
+										FpRxCurrBuf->data[FrxCurr++] = _byte;
+										auto len = com7::decrypt(FpRxCurrBuf->data,FrxCurr,FpRxCurrBuf->data,cRX_BUF_SIZE);
+										if (len > 0){
+											if (destiny != ADDR_BROADCAST)
+												sendAck();
+											FpRxCurrBuf->length = len;
+											switchToNextRxBuffer();
+										} else handleFrameError();
+									} else handleNoMoreBuffers();
+								}
+							} else handleErrMsgSmall();
+						} else handleBufferOvr();
+					}
+					else FhardwErrCnt = 0;
 				}
 
 				//anyway reset RxBusy, init FrxCurr for next message and wakeup thread
@@ -466,6 +492,8 @@ class TsimulUart : public TuartBase{
 			FlinkedUart->isr_readByte(ACK);
 		}
 
+		void doReboot() override {};
+
 		virtual bool doWrite(){
 			if (FlinkedUart){
 				setWaitForAck();
@@ -476,7 +504,7 @@ class TsimulUart : public TuartBase{
 					_size--;
 				}
 			}
-			FevTxIdle.signal();
+			FevTxIdle.setTimeEvent(1000);
 			return true;
 		}
 };
