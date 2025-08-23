@@ -85,19 +85,19 @@ namespace vbusSpike{
 				TcommThreadDefs::eventPort(FobjEvent.event(),_servPort);
 				FdataThread.Fevent.setOwner(_thread);
 				TcommThreadDefs::eventPort(&FdataThread.Fevent,_servPort);
+
+				//set link to timed if at least one of the items has the limitUpdate flag set
+				auto d = l.firstItem();
+				while (d != nullptr && d != l.lastItem()){
+					if (d->limitUpdate()){
+						_linkTime = sdds::TlinkTime::INT_100ms;
+						break;
+					}
+					d = d->next();
+				};
+
 				FlinkTime = _linkTime;
 				FobjEvent.setObservedRange(l);
-
-				/* if we extend the option, we can specify a linkTime within the option
-				   and we can iterate over all items be observed and decide what linkTime to use
-				auto f = l.firstItem();
-				do{
-					if (f->option().linkTime().isTimed()){
-
-					}
-					f = f->next();
-				} while (f != l.lastItem());			
-				*/
 
 				if (_linkTime != sdds::TlinkTime::ON_CHANGE) return;
 
