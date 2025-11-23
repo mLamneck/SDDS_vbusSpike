@@ -66,6 +66,7 @@ class TvbusStimulSpike : public TvbusSpike485{
 						readMessage(&FtxBuffer);
 						stimul_status++;
 						FevStimul.setTimeEvent(100);
+						stimul_status = 100;
 						break;
 					case 1:
 						Fps.init(&FtxBuffer.data[0]);
@@ -121,6 +122,18 @@ class TvbusStimulSpike : public TvbusSpike485{
 						readMessage(&FtxBuffer);
 						stimul_status++;
 						//FevStimul.setTimeEvent(100);
+						break;
+
+					case 100:
+						Fps.init(&FtxBuffer.data[0]);
+						Fps.setHeader(servAddr,clientAddr,0,TvbusProtocoll::ds_fpdr_req);
+						Fps.writeByte(0x88);	//client port
+						Fps.writeByte(3);
+						Fps.writeByte(0);
+						Fps.writeByte(0);
+						Fps.writeByte(1);
+						FtxBuffer.length = Fps.length();
+						readMessage(&FtxBuffer);
 						break;
 				}
 

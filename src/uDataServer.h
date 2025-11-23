@@ -155,6 +155,14 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 			return _msg.writeBytes(_val->pValue(),_val->valSize(),true);
 		}
 
+		bool writeValuesToStream(TprotStream& _msg, TmenuHandle* s, int _firstItemIdx, int _lastItemIdx){
+			auto curr = s->get(_firstItemIdx);
+			while (curr && _firstItemIdx++ <= _lastItemIdx){
+				if (!writeValueToStream(_msg,curr)) return false;
+				curr = curr->next();
+			}
+			return true;
+		}
 
 		bool writeValueToStruct(TprotStream& _msg, Tdescr* _val){
 			auto typeId = _val->typeId();
@@ -180,7 +188,7 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 			auto curr = s->get(_firstItemIdx);
 			while (curr){
 				if (!writeValueToStruct(_msg,curr)) break;
-				curr->callbacks()->emit();
+				curr->callbacks()->notify();
 				nItemsWritten++;
 				curr = curr->next();
 			}
@@ -318,6 +326,38 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 		}
 
 		/**
+		 * @brief handle message with func = ds_fpdr_req and read data associated with the given path
+		 * 
+		 * @param _msg streaming object
+		 * @param _root ptr to the root object
+		 */
+		void handleFPDR(TprotStream& _msg, TmenuHandle* _root){
+			Tport clientPort;
+			if (!_msg.readVal(clientPort)) return;
+
+			//reply with error for wrong path
+			TbinLocator l;
+			switch (l.locate(_msg,_root)){
+				case TbinLocator::Tresult::isStruct:
+					_msg.setReturnHeader(clientPort);
+					_msg.setWritePos(TprotStream::HEADER_SIZE);
+					_msg.writeMsgCnt(0x80);
+					_msg.writePathEntry(l.firstItemIdx());
+					writeValuesToStream(_msg,l.menuHandle(),l.firstItemIdx(),l.lastItemIdx());
+					_msg.setSendPending();
+					break;
+				
+				case TbinLocator::Tresult::isArray:{
+					arrayToDo();
+					break;
+				}
+				
+				default:
+					return _msg.buildErrMsg(TvbusProtocoll::err_invalidPath,clientPort);
+			}
+		}
+
+		/**
 		 * @brief handle a message with serverPort != 0
 		 * 
 		 * @param _msg streaming object
@@ -358,6 +398,7 @@ class TdataServer : public TmenuHandle, public TcommThread<TcommThreadDefs::ID_D
 					break;
 
 				case TvbusProtocoll::ds_fpdr_req:
+					handleFPDR(_msg,_root);
 					break;
 				
 				default : return ThandleMessageRes::notMyBusiness; 

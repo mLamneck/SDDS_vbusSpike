@@ -504,7 +504,7 @@ class TsimulUart : public TuartBase{
 					_size--;
 				}
 			}
-			FevTxIdle.setTimeEvent(1000);
+			FevTxIdle.setTimeEvent(1);
 			return true;
 		}
 };

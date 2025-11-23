@@ -69,6 +69,28 @@ To use `vbusSpike`, you will need:
 | err_invalidPath 		| 0xFD	|
 | err_invalidLinkTime 	| 0xF0	|
 
+<a id="msg-counter"></a>
+#### The Protocoll - Msg Counter
+
+Some message types include a message counter. This counter is used for information that must be split across multiple messages, allowing the client to verify that all parts have been received.
+The counter is a single byte that increments starting from 0x00. In the final message, the MSB is set to indicate completion. For example, if the dataset spans three messages, the counters would be:
+```
+0x00, 0x01, 0x82
+```
+
+<a id="prot-path"></a>
+#### The Protocoll - Path
+
+A path is used to select elements within the hierarchical data structure. It is encoded in a binary format of the form:
+
+`| length | entry_0 .. entry_(length-1) | nItems] |`
+
+Here, `length` is a single byte, while `entry_n` and `nItems` are either bytes or words, depending on the protocol variant.
+
+For example, to select the first two items at the root level, the path would be:
+
+`| 2 | 0 | 2 |`.
+
 
 #### Connections
 
@@ -90,6 +112,8 @@ Possible Errors:
 Possible Errors:
 * err_invalidPath
 
+For more information on path, see [here](#prot-path).
+
 #### Dataserver
 
 #### Type Request
@@ -101,7 +125,10 @@ This is used to retrieve type information for a given binary path. A separate me
 |<b>Req 		| AddrSize	| sAddr 	| cAddr		| 0		| 0x21	| cPort \| path		 				|
 |<b>Ans 		| AddrSize	| cAddr 	| sAddr		| cPort	| 0x20	| msgCnt \| firstIdx \| **descr** 		|
 
-where **descr** is the type description of the variable with firstIdx. The Format of **descr** is described in the next section.
+where **descr** is the type description of the variable with firstIdx. The Format of **descr** is described in the next section. 
+
+For more information on msgCnt, see [here](#msg-counter). For more information on path, see [here](#prot-path).
+
 
 Possible Errors:
 * err_invalidPort
@@ -159,16 +186,32 @@ Possible Errors:
 * err_invalidPort
 * err_invalidPath
 
+For more information on msgCnt, see [here](#msg-counter). For more information on path, see [here](#prot-path).
+
+
 #### Full Path Data Write Request
 
 |			| Ctrl		| Destiny 	| Source    | Port 	| Func 	| 		 	Data					|
 |-			| -			|- 		  	| -			| -		| -		| :- 								|
 |<b>Req 	| AddrSize	| sAddr 	| cAddr		|0		| 0x25	| cPort \| path 	\| binary data 	|
-|<b>Ans 	| AddrSize	| cAddr 	| sAddr		|5		| 0x24	| -									|		
+|<b>Ans 	| AddrSize	| cAddr 	| sAddr		|cPort	| 0x24	| -									|		
 
 Possible Errors:
 * err_invalidPath
 
+For more information on path, see [here](#prot-path).
+
+#### Full Path Data Read Request
+
+|			| Ctrl		| Destiny 	| Source    | Port 	| Func 	| Data	|
+|-			| -			|- 		  	| -			| -		| -		| :- 								|
+|<b>Req 	| AddrSize	| sAddr 	| cAddr		|0		| 0x27	| cPort \| path
+|<b>Ans 	| AddrSize	| cAddr 	| sAddr		|cPort	| 0x26	| msgCnt \| firstIdx \| binary data	|
+
+Possible Errors:
+* err_invalidPath
+
+For more information on msgCnt, see [here](#msg-counter). For more information on path, see [here](#prot-path).
 
 
 ## Contributing

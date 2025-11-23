@@ -1,0 +1,19 @@
+{
+  "name": "SDDS_vbusSpike",
+  "description": "This library enables efficient communication and distribution of self-describing data structures in distributed systems and embedded applications",
+  "keywords": "",
+  "authors": {
+    "name": "Mark Lamneck",
+    "maintainer": true
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mLamneck/SDDS_vbusSpike"
+  },
+  "version": "0.0.0",
+  "frameworks": "*",
+  "platforms": "*",
+  "dependencies": [
+    { "name":"SDDS", "version": "https://github.com/mLamneck/SDDS"}
+  ]
+}
