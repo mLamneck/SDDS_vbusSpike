@@ -112,6 +112,7 @@ class TuartBase : public Tthread{
 		TmessageBufferTX FtxMsg;
 		TmessageBufferTX* FpTxMsg = nullptr;								//current msg to be send
 		dtypes::int8 FnTries = 0;
+		dtypes::int8 FnCollisions = 0;
 
 		struct{
 				bool inRandonTimeout : 1;
@@ -236,7 +237,6 @@ class TuartBase : public Tthread{
 			setTimeEventTicks(2);
 			FprivStatus.inRandonTimeout = true;
 			FendOfFrameEvPending = false;
-			Fcollision = false;
 		}
 
 		void setTxIdle(){
@@ -330,16 +330,20 @@ class TuartBase : public Tthread{
 			else if (_ev == &FevTxIdle){
 				FprivStatus.inTransmission = false;
 				setRandomTimeout();
-				/* try it out, it should work:
-				 * if collision occurred send message again
-				 * and don't downcount FnTries
 				if (Fcollision){
-				} else if (FnTries > 1){
-				*/
-				if (FnTries > 1){
+					Fcollision = false;
+					//after 2 consecutive collisions stop
+					if (++FnCollisions >= 2){
+						FnCollisions=0;
+						setTxIdle();
+					}
+				}
+				else if (FnTries > 1){
+					FnCollisions=0;
 					FnTries--;
 				}
 				else {
+					FnCollisions=0;
 					setTxIdle();
 				}
 			}
