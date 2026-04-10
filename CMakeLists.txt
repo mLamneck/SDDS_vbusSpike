@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(ssdds_vbusSpikes LANGUAGES CXX)
+project(sdds_vbusSpike LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
